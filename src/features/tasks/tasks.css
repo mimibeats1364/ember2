@@ -1,0 +1,12 @@
+.group-label { padding: 14px 12px 4px; }
+.matrix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.quad { padding: 16px 12px 10px; min-height: 260px; display: flex; flex-direction: column; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+.quad-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 0 8px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.quad-list { overflow-y: auto; max-height: 46vh; }
+.quad-do .card-title { color: var(--accent); }
+.quad-schedule .card-title { color: #4fd3e0; }
+.quad-delegate .card-title { color: #e6b030; }
+.quad-delete .card-title { color: var(--text-3); }
+.quad-do { background: radial-gradient(120% 90% at 0% 0%, rgba(var(--accent-rgb), 0.08), transparent 60%), var(--surface); }
+.drop-over { border-color: rgba(var(--accent-rgb), 0.6) !important; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15), var(--glow-soft) !important; }
+@media (max-width: 900px) { .matrix { grid-template-columns: minmax(0, 1fr); } }

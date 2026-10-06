@@ -1,0 +1,33 @@
+.focus-setup-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px; align-items: stretch; }
+.focus-hero { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 34px 20px; }
+.focus-clock { font-size: 56px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; }
+.focus-clock.big { font-size: 76px; text-shadow: 0 0 40px rgba(var(--accent-rgb), 0.35); }
+.sound-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.sound-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); font-size: 11.5px; font-weight: 600; color: var(--text-2); transition: all var(--t-fast); }
+.sound-tile svg { width: 18px; height: 18px; }
+.sound-tile:hover { color: var(--text); border-color: var(--line-strong); }
+.sound-tile.active { border-color: rgba(var(--accent-rgb), 0.6); background: var(--accent-soft); color: var(--text); box-shadow: var(--glow-soft); }
+.sound-tile.active svg { color: var(--accent); }
+
+/* Modo inmersivo */
+.focus-run { position: relative; min-height: 100%; height: 100%; display: grid; place-items: center; padding: 40px 20px; }
+.focus-exit { position: absolute; top: 40px; left: 28px; z-index: 3; }
+.focus-center { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 720px; }
+.focus-task { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.6rem, 3.4vw, 2.6rem); letter-spacing: -0.035em; line-height: 1.08; margin: 10px 0 30px; }
+.focus-ring { position: relative; margin-bottom: 30px; }
+.focus-ring::before { content: ''; position: absolute; inset: -60px; border-radius: 50%; background: radial-gradient(circle, rgba(var(--accent-rgb), 0.16), transparent 62%); animation: breathe 6s ease-in-out infinite; pointer-events: none; }
+.focus-run.break .focus-ring::before { background: radial-gradient(circle, rgba(79, 211, 224, 0.14), transparent 62%); }
+.focus-run.paused .focus-ring { opacity: 0.6; }
+.focus-run.paused .focus-ring::before { animation-play-state: paused; }
+.focus-controls { display: flex; gap: 12px; }
+.btn-icon-lg { width: 56px; height: 56px; padding: 0; border-radius: 50%; }
+.btn-icon-lg svg { width: 22px; height: 22px; }
+.focus-sound { display: flex; align-items: center; gap: 2px; margin-top: 30px; padding: 6px 10px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); flex-wrap: wrap; justify-content: center; }
+.active-sound { color: var(--accent) !important; background: var(--accent-soft) !important; }
+.done-orb { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 36%, #fff4e6 0%, #ffb070 22%, var(--accent) 55%, var(--accent-2) 80%, #2a0605 100%); box-shadow: 0 0 80px 10px rgba(var(--accent-rgb), 0.4); color: #fff; animation: pop 600ms var(--ease-spring); }
+.done-orb svg { width: 30px; height: 30px; }
+@media (max-width: 900px) { .focus-setup-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) {
+  .focus-clock.big { font-size: 58px; }
+  .focus-exit { top: 16px; left: 12px; }
+}

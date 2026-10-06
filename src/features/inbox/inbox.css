@@ -1,0 +1,12 @@
+.inbox-list { display: flex; flex-direction: column; margin-top: 10px; }
+.inbox-item { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 12px; border-bottom: 1px solid var(--line); }
+.inbox-item:last-child { border-bottom: 0; }
+.inbox-item:hover { background: var(--surface-hover); }
+.inbox-kind { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-2); flex: none; }
+.inbox-kind svg { width: 15px; height: 15px; }
+.inbox-title { display: flex; flex-direction: column; text-align: left; min-width: 0; gap: 2px; font-weight: 600; font-size: var(--fs-sm); }
+.inbox-actions { display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 720px) {
+  .inbox-item { flex-wrap: wrap; }
+  .inbox-actions { width: 100%; justify-content: flex-start; padding-left: 42px; }
+}

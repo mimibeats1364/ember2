@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es" data-theme="ember">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#050505" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <title>Ember</title>
+    <style>
+      /* Splash mínimo: evita el destello blanco mientras carga la app. */
+      html, body { margin: 0; background: #050505; }
+      #splash { position: fixed; inset: 0; display: grid; place-items: center; }
+      #splash .core { width: 56px; height: 56px; border-radius: 50%;
+        background: radial-gradient(circle at 42% 38%, #fff4e6 0%, #ffb070 22%, #ff5a26 52%, #c4241f 80%, #5a0b09 100%);
+        box-shadow: 0 0 60px 8px rgba(255, 74, 34, 0.35); animation: pulse 1.6s ease-in-out infinite; }
+      @keyframes pulse { 50% { transform: scale(0.94); box-shadow: 0 0 40px 4px rgba(255, 74, 34, 0.25); } }
+      @media (prefers-reduced-motion: reduce) { #splash .core { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="splash" aria-hidden="true"><div class="core"></div></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

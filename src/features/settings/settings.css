@@ -1,0 +1,11 @@
+.settings-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: start; }
+.settings-nav { display: flex; flex-direction: column; gap: 1px; position: sticky; top: 0; }
+.settings-nav .nav-item.active::before { display: none; }
+.settings-body { min-width: 0; max-width: 760px; }
+.danger-zone { border-color: rgba(255, 90, 95, 0.25); }
+@media (max-width: 900px) {
+  .settings-layout { grid-template-columns: minmax(0, 1fr); }
+  .settings-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .settings-nav .nav-item { flex: none; width: auto; padding: 0 12px; }
+  .settings-nav .nav-item span { display: inline !important; }
+}
