@@ -70,6 +70,12 @@ export function defaultPreferences(): Fields<Preferences> {
     onboarded: false,
     userType: 'both',
     mainGoals: [],
+    glass: 'vivid',
+    windowGlass: true,
+    focusIsland: true,
+    dockBadge: true,
+    learned: [],
+    seenWhatsNew: '',
   };
 }
 

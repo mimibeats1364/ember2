@@ -399,6 +399,18 @@ export interface Preferences extends BaseEntity {
   onboarded: boolean;
   userType: 'work' | 'study' | 'both' | 'other';
   mainGoals: string[];
+  /** Intensidad del vidrio líquido en la interfaz. */
+  glass: 'off' | 'subtle' | 'vivid';
+  /** Vidrio nativo de macOS detrás de la ventana (NSGlassEffectView). */
+  windowGlass: boolean;
+  /** Isla flotante con el temporizador de Focus cuando Ember no está delante. */
+  focusIsland: boolean;
+  /** Número de tareas de hoy en el icono del Dock. */
+  dockBadge: boolean;
+  /** Lecciones del tutorial completadas. */
+  learned: string[];
+  /** Última versión cuyas novedades se mostraron. */
+  seenWhatsNew: string;
 }
 
 export interface EntityMap {

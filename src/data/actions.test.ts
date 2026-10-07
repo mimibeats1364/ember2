@@ -14,6 +14,10 @@ import { createBackup, parseBackup, planMerge } from '@core/io/backup';
 import { deepWorkConfig, startFocus, stop } from '@core/focus';
 import { initData, useData, createEntity, getEntity, undo, importEntities } from './store';
 import {
+  createRoutine,
+  newRoutineStep,
+  rescheduleMany,
+  setRoutineStep,
   captureParsed,
   completeTask,
   createEvent,
@@ -29,6 +33,9 @@ import {
 import { goalFields, projectFields } from './defaults';
 import type { Task } from '@core/types';
 import { proposeDay } from './schedule';
+import { parkThought, startFocusSession, useFocus } from '@/app/focusStore';
+import { pomodoroConfig } from '@core/focus';
+import { routineRunId } from './defaults';
 
 const today = todayFn();
 
@@ -136,6 +143,45 @@ describe('QA de producto', () => {
     expect(plan2.updated).toBe(backup.data.tasks!.length);
     importEntities(plan2.upserts);
     expect(Object.values(useData.getState().c.tasks).every((x) => x.title.endsWith('(copia)'))).toBe(true);
+  });
+
+  it('rutinas: un paso vinculado registra el hábito; completar todo marca la rutina; desmarcar no borra el hábito', () => {
+    const habit = createHabit({ name: 'Meditar', startDate: today });
+    const r = createRoutine({ name: 'Mañana', steps: [newRoutineStep('Agua', 1), newRoutineStep('Meditar', 10, habit.id)] });
+    const [s1, s2] = r.steps;
+    expect(setRoutineStep(r.id, today, s2.id, true)).toEqual({ habitLogged: 'Meditar', completed: false });
+    expect(getEntity('habitLogs', `${habit.id}_${today}`)?.status).toBe('done');
+    const res = setRoutineStep(r.id, today, s1.id, true);
+    expect(res.completed).toBe(true);
+    expect(getEntity('routineRuns', routineRunId(r.id, today))?.completedAt).toBeTruthy();
+    setRoutineStep(r.id, today, s2.id, false);
+    expect(getEntity('routineRuns', routineRunId(r.id, today))?.completedAt).toBeNull();
+    expect(getEntity('habitLogs', `${habit.id}_${today}`)?.status).toBe('done');
+  });
+
+  it('mover varias tareas atrasadas se deshace de una vez', () => {
+    const a = createTask({ title: 'Atrasada A', date: addDays(today, -3) });
+    const b = createTask({ title: 'Atrasada B', date: addDays(today, -1) });
+    expect(rescheduleMany([a.id, b.id], addDays(today, 1))).toBe(2);
+    expect(getEntity('tasks', a.id)!.date).toBe(addDays(today, 1));
+    undo();
+    expect(getEntity('tasks', a.id)!.date).toBe(addDays(today, -3));
+    expect(getEntity('tasks', b.id)!.date).toBe(addDays(today, -1));
+  });
+
+  it('focus: aparcar distracciones y no perder la sesión anterior al empezar otra', () => {
+    const before = Object.keys(useData.getState().c.focusSessions).length;
+    startFocusSession(pomodoroConfig(25, 5, 15, 4, true), null, 'Primera', 'none', 0);
+    expect(parkThought('Contestar a Marta')).toBe(true);
+    expect(Object.values(useData.getState().c.tasks).some((x) => x.title === 'Contestar a Marta' && x.inbox)).toBe(true);
+    expect(useFocus.getState().parked).toEqual(['Contestar a Marta']);
+    // Simula 40 s de sesión y empieza otra: la primera se guarda.
+    const st = useFocus.getState().state!;
+    useFocus.setState({ state: { ...st, phaseStartedAt: st.phaseStartedAt - 40_000, sessionStartedAt: st.sessionStartedAt - 40_000 } });
+    startFocusSession(pomodoroConfig(25, 5, 15, 4, true), null, 'Segunda', 'none', 0);
+    const sessions = Object.values(useData.getState().c.focusSessions);
+    expect(sessions.length).toBe(before + 1);
+    expect(sessions.some((x) => x.label === 'Primera')).toBe(true);
   });
 
   it('sin conexión: todo funciona con almacenamiento local (no hay dependencias de red)', () => {

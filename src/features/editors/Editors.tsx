@@ -17,6 +17,8 @@ import { buildTimeline } from '@core/calendar';
 import { isScheduled } from '@core/habits';
 
 const YearReview = lazy(() => import('@/features/insights/YearReview'));
+const RoutineRunner = lazy(() => import('@/features/routines/RoutineOverlays').then((m) => ({ default: m.RoutineRunner })));
+const RoutineEditor = lazy(() => import('@/features/routines/RoutineOverlays').then((m) => ({ default: m.RoutineEditor })));
 
 export default function Editors() {
   const ui = useUi();
@@ -28,6 +30,12 @@ export default function Editors() {
       {ui.goalEditor && <GoalEditor key={ui.goalEditor.id ?? 'new'} id={ui.goalEditor.id} prefill={ui.goalEditor.prefill} />}
       {ui.areaEditor && <AreaEditor key={ui.areaEditor.id ?? 'new'} id={ui.areaEditor.id} />}
       {ui.planDay && <PlanDayModal key={ui.planDay} date={ui.planDay} />}
+      {(ui.routineRunner || ui.routineEditor) && (
+        <Suspense fallback={null}>
+          {ui.routineRunner && <RoutineRunner key={ui.routineRunner} id={ui.routineRunner} />}
+          {ui.routineEditor && <RoutineEditor key={ui.routineEditor.id ?? 'new'} id={ui.routineEditor.id} prefill={ui.routineEditor.prefill} />}
+        </Suspense>
+      )}
       {ui.yearReview && (
         <Suspense fallback={null}>
           <YearReview />

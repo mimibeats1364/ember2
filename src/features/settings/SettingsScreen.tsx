@@ -10,7 +10,7 @@ import { t, weekdayName, type TKey } from '@/i18n';
 import { cx, Field, PendingBadge, Segmented, Switch, Kbd } from '@/ui/components/primitives';
 import { THEMES } from '@/ui/theme/palette';
 import { AMBIENT_KINDS } from '@/platform/sound';
-import { ensureNotificationPermission, notificationPermission, notify, type NotifyPermission } from '@/platform/native';
+import { ensureNotificationPermission, notificationPermission, notify, supportsWindowGlass, type NotifyPermission } from '@/platform/native';
 import { APP_VERSION, isTauri } from '@/platform/env';
 import { askConfirm, openEventEditor, toast, useUi } from '@/app/ui';
 import { ThemeCard } from '@/features/onboarding/Onboarding';
@@ -76,6 +76,17 @@ export default function SettingsScreen() {
               </div>
               <p className="faint xs">{t(`settings.themeHints.${prefs.theme}` as TKey)}</p>
               <div className="card card-pad">
+                <Row label={t('settings.glass')} hint={t('settings.glassHint')}>
+                  <Segmented value={prefs.glass} onChange={(glass) => set({ glass })} options={(['vivid', 'subtle', 'off'] as const).map((v) => ({ value: v, label: t(`settings.glassOptions.${v}`) }))} />
+                </Row>
+                <Row label={t('settings.windowGlass')} hint={supportsWindowGlass() ? t('settings.windowGlassHint') : t('settings.macOnly')}>
+                  <Switch checked={prefs.windowGlass} onChange={(v) => set({ windowGlass: v })} label={t('settings.windowGlass')} />
+                </Row>
+                {isTauri() && (
+                  <Row label={t('settings.dockBadge')} hint={t('settings.dockBadgeHint')}>
+                    <Switch checked={prefs.dockBadge} onChange={(v) => set({ dockBadge: v })} label={t('settings.dockBadge')} />
+                  </Row>
+                )}
                 <Row label={t('settings.reducedMotion')}>
                   <Segmented value={prefs.reducedMotion} onChange={(reducedMotion) => set({ reducedMotion })} options={(['system', 'on', 'off'] as const).map((v) => ({ value: v, label: t(`settings.reducedMotionOptions.${v}`) }))} />
                 </Row>
@@ -96,6 +107,7 @@ export default function SettingsScreen() {
                 <Segmented value={`${prefs.focus.focusMin}/${prefs.focus.breakMin}`} onChange={(v) => { const [f, b] = v.split('/').map(Number); set({ focus: { ...prefs.focus, focusMin: f, breakMin: b, longBreakMin: b * 3 } }); }} options={['25/5', '50/10', '90/20'].map((v) => ({ value: v, label: v }))} />
               </Row>
               <Row label={t('settings.autoBreaks')}><Switch checked={prefs.focus.autoStartBreaks} onChange={(v) => set({ focus: { ...prefs.focus, autoStartBreaks: v } })} label={t('settings.autoBreaks')} /></Row>
+              <Row label={t('settings.focusIsland')} hint={t('settings.focusIslandHint')}><Switch checked={prefs.focusIsland} onChange={(v) => set({ focusIsland: v })} label={t('settings.focusIsland')} /></Row>
               <Row label={t('focus.sound')}>
                 <select className="select" style={{ width: 200 }} value={prefs.focus.sound} onChange={(e) => set({ focus: { ...prefs.focus, sound: e.target.value } })}>
                   {AMBIENT_KINDS.map((k) => <option key={k} value={k}>{t(`sounds.${k}` as TKey)}</option>)}

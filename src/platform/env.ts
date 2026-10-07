@@ -8,4 +8,4 @@ export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(
 /** Etiqueta del modificador principal: ⌘ en Mac, Ctrl en el resto. */
 export const MOD = isMac ? '⌘' : 'Ctrl';
 
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.2.0';

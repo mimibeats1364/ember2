@@ -3,14 +3,14 @@
  * cae a equivalentes web. El resto de la app no sabe en qué plataforma corre.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { listen, emit, type UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen, emit, emitTo, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWindow, Effect, EffectState } from '@tauri-apps/api/window';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut';
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { isTauri } from './env';
+import { isMac, isTauri } from './env';
 
 // ── Ventana ────────────────────────────────────────────────────────────────────────────
 
@@ -29,6 +29,43 @@ export async function hideCaptureWindow() {
 
 export async function showMainWindow() {
   if (isTauri()) await invoke('show_main_window').catch(() => {});
+}
+
+// ── Vidrio nativo de macOS ─────────────────────────────────────────────────────────────
+
+export function supportsWindowGlass(): boolean {
+  return isTauri() && isMac;
+}
+
+/**
+ * Pone (o quita) el vidrio del sistema detrás de la ventana: Liquid Glass (NSGlassEffectView)
+ * en macOS 26 o posterior y, en versiones anteriores, el material translúcido clásico.
+ */
+export async function setWindowGlass(on: boolean): Promise<boolean> {
+  if (!supportsWindowGlass()) return false;
+  const w = getCurrentWindow();
+  try {
+    if (on) {
+      await w.setEffects({ effects: [Effect.LiquidGlassRegular, Effect.UnderWindowBackground], state: EffectState.FollowsWindowActiveState });
+      return true;
+    }
+    await w.clearEffects();
+  } catch (e) {
+    console.warn('[ember] vidrio de ventana', e);
+  }
+  return false;
+}
+
+/** Apariencia de la ventana (semáforos y vidrio) a juego con el tema de Ember. */
+export async function setWindowTheme(theme: 'light' | 'dark') {
+  if (!isTauri()) return;
+  await getCurrentWindow().setTheme(theme).catch(() => {});
+}
+
+/** Número en el icono del Dock (0 lo quita). */
+export async function setDockBadge(count: number) {
+  if (!isTauri()) return;
+  await getCurrentWindow().setBadgeCount(count > 0 ? count : undefined).catch(() => {});
 }
 
 // ── Notificaciones ─────────────────────────────────────────────────────────────────────
@@ -128,6 +165,56 @@ export async function onCapture(cb: (p: CapturePayload) => void): Promise<Unlist
 export async function onCaptureShown(cb: () => void): Promise<UnlistenFn> {
   if (!isTauri()) return () => {};
   return listen('ember://capture-shown', () => cb());
+}
+
+// ── Isla de Focus (ventana flotante) ───────────────────────────────────────────────────
+
+export interface IslandPayload {
+  state: unknown;
+  theme: string;
+  glass: boolean;
+}
+
+let islandVisible: boolean | null = null;
+export async function setIslandVisible(visible: boolean) {
+  if (!isTauri() || islandVisible === visible) return;
+  islandVisible = visible;
+  await invoke('set_island', { visible }).catch((e) => console.warn('[ember] isla', e));
+}
+
+export async function sendIslandState(payload: IslandPayload) {
+  if (isTauri()) await emitTo('island', 'ember://island-state', payload).catch(() => {});
+}
+
+export async function onIslandState(cb: (p: IslandPayload) => void): Promise<UnlistenFn> {
+  if (!isTauri()) return () => {};
+  return listen<IslandPayload>('ember://island-state', (e) => cb(e.payload));
+}
+
+export async function sendIslandCommand(cmd: string) {
+  if (isTauri()) await emit('ember://island-cmd', { cmd });
+}
+
+export async function onIslandCommand(cb: (cmd: string) => void): Promise<UnlistenFn> {
+  if (!isTauri()) return () => {};
+  return listen<{ cmd: string }>('ember://island-cmd', (e) => cb(e.payload.cmd));
+}
+
+export async function announceIslandReady() {
+  if (isTauri()) await emit('ember://island-ready');
+}
+
+export async function onIslandReady(cb: () => void): Promise<UnlistenFn> {
+  if (!isTauri()) return () => {};
+  return listen('ember://island-ready', () => cb());
+}
+
+/** Avisa cuando la ventana principal gana o pierde el foco. */
+export async function onMainFocusChange(cb: (focused: boolean) => void): Promise<UnlistenFn> {
+  if (!isTauri()) return () => {};
+  const w = getCurrentWindow();
+  cb(await w.isFocused().catch(() => true));
+  return w.onFocusChanged(({ payload }) => cb(payload));
 }
 
 // ── Atajo global ───────────────────────────────────────────────────────────────────────

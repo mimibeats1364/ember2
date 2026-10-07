@@ -3,8 +3,10 @@ import { initData, useData, usePrefs } from '@/data/store';
 import { restoreFocus } from './focusStore';
 import { Shell } from './Shell';
 import { CaptureWindow } from './CaptureWindow';
+import { IslandWindow } from './IslandWindow';
 import { Onboarding } from '@/features/onboarding/Onboarding';
 import { ThemeSync } from './engines';
+import { MotionRoot } from '@/ui/motion/MotionRoot';
 
 function hideSplash() {
   const el = document.getElementById('splash');
@@ -17,6 +19,7 @@ function hideSplash() {
 
 export function App({ window: label }: { window: string }) {
   if (label === 'capture') return <CaptureWindow />;
+  if (label === 'island') return <IslandWindow />;
   return <MainApp />;
 }
 
@@ -41,13 +44,16 @@ function MainApp() {
 
 function Gate() {
   const prefs = usePrefs();
-  if (!prefs.onboarded) {
-    return (
-      <>
-        <ThemeSync />
-        <Onboarding />
-      </>
-    );
-  }
-  return <Shell />;
+  return (
+    <MotionRoot>
+      {prefs.onboarded ? (
+        <Shell />
+      ) : (
+        <>
+          <ThemeSync />
+          <Onboarding />
+        </>
+      )}
+    </MotionRoot>
+  );
 }

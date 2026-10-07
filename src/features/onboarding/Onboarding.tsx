@@ -6,6 +6,8 @@ import { createEntity, transaction, updatePrefs, usePrefs } from '@/data/store';
 import { createHabit } from '@/data/actions';
 import { eventFields, goalFields } from '@/data/defaults';
 import { loadDemoData } from '@/data/seed';
+import { APP_VERSION } from '@/platform/env';
+import { startTour } from '@/app/ui';
 import { t, tList, weekdayName, type TKey } from '@/i18n';
 import { cx, Switch } from '@/ui/components/primitives';
 import { THEMES, THEME_SWATCHES } from '@/ui/theme/palette';
@@ -68,10 +70,12 @@ export function Onboarding() {
     });
     if (notifications) await ensureNotificationPermission();
     if (demo) await loadDemoData(prefs.locale);
-    updatePrefs({ onboarded: true });
+    updatePrefs({ onboarded: true, seenWhatsNew: APP_VERSION });
+    // Recorrido guiado de un minuto por lo esencial (se puede saltar).
+    setTimeout(() => startTour('welcome'), 700);
   };
 
-  const skip = () => updatePrefs({ onboarded: true });
+  const skip = () => updatePrefs({ onboarded: true, seenWhatsNew: APP_VERSION });
   const next = () => (step < TOTAL - 1 ? setStep(step + 1) : void finish());
 
   return (

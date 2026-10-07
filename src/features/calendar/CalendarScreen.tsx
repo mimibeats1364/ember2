@@ -11,7 +11,7 @@ import { formatDate, formatRange, t, weekdayName, type TKey } from '@/i18n';
 import { cx, Popover, MenuList, Segmented } from '@/ui/components/primitives';
 import { useDropTarget, useDropTargets, useDragState, type DragPayload, type DropInfo } from '@/ui/components/dnd';
 import { CATEGORY_COLORS, colorValue } from '@/ui/theme/palette';
-import { navigate, openEventEditor, openTask, toast } from '@/app/ui';
+import { navigate, openEventEditor, openTask, toast, useUi } from '@/app/ui';
 import { TaskRow } from '@/features/tasks/TaskRow';
 import { importIcsFile } from '@/features/settings/dataIO';
 import './calendar.css';
@@ -25,8 +25,9 @@ const itemColor = (it: TimelineItem) => colorValue(it.color ?? CATEGORY_COLORS[i
 export default function CalendarScreen() {
   const today = useToday();
   const prefs = usePrefs();
-  const [view, setView] = useState<View>(() => (window.innerWidth < 720 ? 'day' : 'week'));
-  const [anchor, setAnchor] = useState(today);
+  const route = useUi((s) => s.route);
+  const [view, setView] = useState<View>(() => (['month', 'week', 'day', 'agenda'].includes(route.tab ?? '') ? (route.tab as View) : window.innerWidth < 720 ? 'day' : 'week'));
+  const [anchor, setAnchor] = useState(() => (route.id && /^\d{4}-\d{2}-\d{2}$/.test(route.id) ? route.id : today));
   const days = useMemo(() => {
     if (view === 'day') return [anchor];
     if (view === 'week') return Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(anchor, prefs.weekStartsOn), i));

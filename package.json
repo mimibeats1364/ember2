@@ -1,7 +1,7 @@
 {
   "name": "ember",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Ember — tu sistema operativo personal de productividad",
   "scripts": {
@@ -14,13 +14,15 @@
     "test:watch": "TZ=Europe/Madrid vitest",
     "tauri": "tauri",
     "app:dev": "tauri dev",
-    "app:build": "tauri build --bundles app"
+    "app:build": "tauri build --bundles app",
+    "docs:tutorial": "node scripts/gen-tutorial.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/inter-tight": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-deep-link": "^2.6.1",
     "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-fs": "^2.6.0",
     "@tauri-apps/plugin-global-shortcut": "^2.4.0",
@@ -29,6 +31,7 @@
     "@tauri-apps/plugin-sql": "^2.5.0",
     "lucide-react": "^1.52.0",
     "marked": "^18.1.0",
+    "motion": "^14.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zustand": "^5.0.15"

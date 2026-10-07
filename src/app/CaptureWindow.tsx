@@ -3,6 +3,7 @@ import { CaptureBox } from './QuickCapture';
 import { hideCaptureWindow, onCaptureShown, sendCapture } from '@/platform/native';
 import { t } from '@/i18n';
 import { playUiSound } from '@/platform/sound';
+import { isTauri } from '@/platform/env';
 
 /**
  * Ventana flotante de captura global (⌃⇧Espacio desde cualquier app). No toca la base de
@@ -13,6 +14,8 @@ export function CaptureWindow() {
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     document.documentElement.classList.add('capture-window');
+    // La ventana se crea con vidrio nativo (Liquid Glass en macOS 26+).
+    if (isTauri()) document.documentElement.setAttribute('data-window-glass', '');
     document.getElementById('splash')?.remove();
     let un: (() => void) | undefined;
     void onCaptureShown(() => {

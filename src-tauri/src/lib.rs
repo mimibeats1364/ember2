@@ -5,18 +5,36 @@
 //! - Ventana de captura rápida invocable con un atajo global.
 //! - Menú de aplicación en español.
 //! - Cerrar la ventana principal la oculta (la app sigue viva en la barra de menús).
+//! - Isla de Focus: ventana flotante de vidrio con el temporizador (no roba el foco).
+//! - Vidrio líquido nativo (NSGlassEffectView en macOS 26+) en las ventanas flotantes.
 
 use serde::{Deserialize, Serialize};
 use tauri::{
     image::Image,
     menu::{Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, RunEvent, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    utils::config::WindowEffectsConfig,
+    window::Effect,
+    AppHandle, Emitter, LogicalPosition, Manager, RunEvent, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 
 const TRAY_ID: &str = "ember-tray";
 const MAIN: &str = "main";
 const CAPTURE: &str = "capture";
+const ISLAND: &str = "island";
+const ISLAND_W: f64 = 400.0;
+const ISLAND_H: f64 = 64.0;
+
+/// Vidrio líquido del sistema; en macOS anteriores a 26 cae al material translúcido clásico.
+fn glass(radius: f64, fallback: Effect, interactive: bool) -> WindowEffectsConfig {
+    WindowEffectsConfig {
+        effects: vec![Effect::LiquidGlassRegular, fallback],
+        state: None,
+        radius: Some(radius),
+        color: None,
+        interactive,
+    }
+}
 
 #[derive(Deserialize, Clone)]
 struct TrayTask {
@@ -76,6 +94,9 @@ fn toggle_capture_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .inner_size(660.0, 236.0)
         .resizable(false)
         .decorations(false)
+        .transparent(true)
+        .shadow(true)
+        .effects(glass(26.0, Effect::HudWindow, false))
         .always_on_top(true)
         .skip_taskbar(true)
         .visible_on_all_workspaces(true)
@@ -88,6 +109,45 @@ fn toggle_capture_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             let _ = handle.hide();
         }
     });
+    Ok(())
+}
+
+/// Muestra u oculta la isla de Focus. Se crea la primera vez, centrada bajo la barra de menús.
+fn set_island_window<R: Runtime>(app: &AppHandle<R>, visible: bool) -> tauri::Result<()> {
+    if let Some(w) = app.get_webview_window(ISLAND) {
+        if visible {
+            w.show()?;
+        } else {
+            w.hide()?;
+        }
+        return Ok(());
+    }
+    if !visible {
+        return Ok(());
+    }
+    let w = WebviewWindowBuilder::new(app, ISLAND, WebviewUrl::App("index.html".into()))
+        .title("Ember Focus")
+        .inner_size(ISLAND_W, ISLAND_H)
+        .resizable(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(true)
+        .effects(glass(ISLAND_H / 2.0, Effect::HudWindow, true))
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible_on_all_workspaces(true)
+        .focusable(false)
+        .focused(false)
+        .accept_first_mouse(true)
+        .visible(false)
+        .build()?;
+    if let Some(monitor) = w.current_monitor()?.or(app.primary_monitor()?) {
+        let scale = monitor.scale_factor();
+        let size = monitor.size().to_logical::<f64>(scale);
+        let pos = monitor.position().to_logical::<f64>(scale);
+        w.set_position(LogicalPosition::new(pos.x + (size.width - ISLAND_W) / 2.0, pos.y + 42.0))?;
+    }
+    w.show()?;
     Ok(())
 }
 
@@ -223,6 +283,11 @@ fn show_main_window(app: AppHandle) {
     show_main(&app);
 }
 
+#[tauri::command]
+fn set_island(app: AppHandle, visible: bool) -> Result<(), String> {
+    set_island_window(&app, visible).map_err(|e| e.to_string())
+}
+
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -238,7 +303,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        // Enlaces ember:// (Atajos de Apple, Siri, Raycast…). La ventana principal los interpreta.
+        .plugin(tauri_plugin_deep_link::init());
 
     #[cfg(desktop)]
     {
@@ -246,7 +313,7 @@ pub fn run() {
             .plugin(tauri_plugin_global_shortcut::Builder::new().build())
             .plugin(
                 tauri_plugin_window_state::Builder::default()
-                    .with_denylist(&[CAPTURE])
+                    .with_denylist(&[CAPTURE, ISLAND])
                     .build(),
             );
     }
@@ -257,7 +324,8 @@ pub fn run() {
             set_tray_title,
             toggle_capture,
             hide_capture,
-            show_main_window
+            show_main_window,
+            set_island
         ])
         .menu(|app| build_app_menu(app))
         .on_menu_event(|app, event| {

@@ -26,6 +26,11 @@
 
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Muelles físicos (masa-muelle-amortiguador muestreados con linear()). */
+  --spring-snappy: linear(0, 0.057, 0.184, 0.332, 0.485, 0.622, 0.734, 0.825, 0.894, 0.942, 0.975, 0.997, 1.009, 1.015, 1.017, 1.016, 1.014, 1.012, 1.009, 1.007, 1.005, 1.003, 1.002, 1.001, 1);
+  --spring-smooth: linear(0, 0.064, 0.196, 0.338, 0.473, 0.589, 0.682, 0.758, 0.817, 0.862, 0.897, 0.923, 0.942, 0.957, 0.968, 0.976, 0.982, 0.987, 0.99, 0.993, 0.995, 0.996, 0.997, 0.998, 1);
+  --spring-bouncy: linear(0, 0.081, 0.261, 0.48, 0.697, 0.874, 1.004, 1.088, 1.127, 1.134, 1.119, 1.093, 1.063, 1.035, 1.012, 0.996, 0.987, 0.982, 0.982, 0.985, 0.988, 0.992, 0.996, 0.999, 1.001, 1.002, 1.002, 1.002, 1.002, 1.001, 1);
+  --spring-liquid: linear(0, 0.056, 0.189, 0.359, 0.533, 0.697, 0.836, 0.944, 1.019, 1.068, 1.093, 1.1, 1.095, 1.082, 1.065, 1.047, 1.031, 1.017, 1.006, 0.998, 0.993, 0.991, 0.99, 0.99, 0.992, 0.993, 0.995, 0.997, 0.998, 0.999, 1, 1.001, 1);
   --t-fast: 120ms; --t-med: 200ms; --t-slow: 340ms;
 
   --sidebar-w: 244px;
@@ -68,6 +73,19 @@
   --ambient-2: rgba(231, 53, 62, 0.06);
   --particle: 255, 120, 80;
   --scrim: rgba(0, 0, 0, 0.6);
+  /* Vidrio líquido */
+  --bg-rgb: 5, 5, 5;
+  --glass-tint: 255, 255, 255;
+  --glass-fill: rgba(20, 20, 24, 0.5);
+  --glass-fill-strong: rgba(16, 16, 19, 0.72);
+  --glass-rim: rgba(255, 255, 255, 0.2);
+  --glass-rim-soft: rgba(255, 255, 255, 0.05);
+  --glass-spec: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 -1px 0 rgba(0, 0, 0, 0.35) inset, 0 20px 50px -24px rgba(0, 0, 0, 0.8);
+  --aurora-1: rgba(255, 77, 46, 0.42);
+  --aurora-2: rgba(231, 53, 62, 0.31);
+  --aurora-3: rgba(255, 150, 60, 0.22);
+  --aurora-4: rgba(120, 40, 160, 0.2);
 }
 
 [data-theme='midnight'] {
@@ -78,6 +96,8 @@
   --glow: 0 0 28px rgba(111, 139, 255, 0.42); --glow-soft: 0 0 60px rgba(111, 139, 255, 0.16);
   --glass: rgba(13, 18, 32, 0.62); --glass-strong: rgba(10, 14, 26, 0.88);
   --ambient-1: rgba(111, 139, 255, 0.14); --ambient-2: rgba(143, 107, 255, 0.07); --particle: 150, 170, 255;
+  --bg-rgb: 6, 9, 18; --glass-fill: rgba(13, 18, 32, 0.5); --glass-fill-strong: rgba(10, 14, 26, 0.74);
+  --aurora-1: rgba(111, 139, 255, 0.42); --aurora-2: rgba(143, 107, 255, 0.34); --aurora-3: rgba(60, 196, 230, 0.2); --aurora-4: rgba(40, 60, 160, 0.25);
 }
 
 [data-theme='cosmic'] {
@@ -88,6 +108,8 @@
   --glow: 0 0 28px rgba(176, 107, 255, 0.45); --glow-soft: 0 0 60px rgba(255, 79, 176, 0.14);
   --glass: rgba(17, 11, 28, 0.62); --glass-strong: rgba(13, 8, 22, 0.88);
   --ambient-1: rgba(176, 107, 255, 0.15); --ambient-2: rgba(255, 79, 176, 0.08); --particle: 210, 160, 255;
+  --bg-rgb: 7, 4, 13; --glass-fill: rgba(17, 11, 28, 0.5); --glass-fill-strong: rgba(13, 8, 22, 0.74);
+  --aurora-1: rgba(176, 107, 255, 0.45); --aurora-2: rgba(255, 79, 176, 0.34); --aurora-3: rgba(80, 120, 255, 0.22); --aurora-4: rgba(255, 140, 90, 0.14);
 }
 
 [data-theme='forest'] {
@@ -98,6 +120,8 @@
   --glow: 0 0 28px rgba(70, 218, 104, 0.38); --glow-soft: 0 0 60px rgba(70, 218, 104, 0.12);
   --glass: rgba(12, 20, 15, 0.62); --glass-strong: rgba(9, 15, 11, 0.88);
   --ambient-1: rgba(70, 218, 104, 0.1); --ambient-2: rgba(47, 191, 143, 0.06); --particle: 140, 240, 170;
+  --bg-rgb: 5, 10, 7; --glass-fill: rgba(12, 20, 15, 0.5); --glass-fill-strong: rgba(9, 15, 11, 0.74);
+  --aurora-1: rgba(70, 218, 104, 0.31); --aurora-2: rgba(47, 191, 143, 0.28); --aurora-3: rgba(200, 220, 80, 0.14); --aurora-4: rgba(30, 120, 110, 0.22);
 }
 
 [data-theme='ocean'] {
@@ -108,6 +132,8 @@
   --glow: 0 0 28px rgba(60, 196, 230, 0.4); --glow-soft: 0 0 60px rgba(60, 126, 230, 0.14);
   --glass: rgba(10, 20, 28, 0.62); --glass-strong: rgba(7, 15, 22, 0.88);
   --ambient-1: rgba(60, 196, 230, 0.11); --ambient-2: rgba(60, 126, 230, 0.07); --particle: 140, 220, 255;
+  --bg-rgb: 4, 10, 15; --glass-fill: rgba(10, 20, 28, 0.5); --glass-fill-strong: rgba(7, 15, 22, 0.74);
+  --aurora-1: rgba(60, 196, 230, 0.36); --aurora-2: rgba(60, 126, 230, 0.34); --aurora-3: rgba(80, 230, 200, 0.17); --aurora-4: rgba(40, 60, 160, 0.22);
 }
 
 [data-theme='minimal'] {
@@ -118,6 +144,8 @@
   --glow: none; --glow-soft: none;
   --glass: rgba(20, 20, 20, 0.8); --glass-strong: rgba(16, 16, 16, 0.94);
   --ambient-1: transparent; --ambient-2: transparent; --particle: 200, 200, 200;
+  --bg-rgb: 12, 12, 12; --glass-fill: rgba(22, 22, 22, 0.62); --glass-fill-strong: rgba(18, 18, 18, 0.82);
+  --aurora-1: transparent; --aurora-2: transparent; --aurora-3: transparent; --aurora-4: transparent;
 }
 
 [data-theme='light'] {
@@ -134,6 +162,11 @@
   --glass: rgba(255, 255, 255, 0.72); --glass-strong: rgba(255, 255, 255, 0.92);
   --ambient-1: rgba(232, 67, 42, 0.07); --ambient-2: rgba(212, 47, 60, 0.04); --particle: 232, 100, 70;
   --scrim: rgba(20, 20, 20, 0.3);
+  --bg-rgb: 245, 244, 241; --glass-tint: 255, 255, 255;
+  --glass-fill: rgba(255, 255, 255, 0.58); --glass-fill-strong: rgba(255, 255, 255, 0.8);
+  --glass-rim: rgba(255, 255, 255, 0.95); --glass-rim-soft: rgba(0, 0, 0, 0.06); --glass-spec: rgba(255, 255, 255, 0.55);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 -1px 0 rgba(0, 0, 0, 0.04) inset, 0 18px 40px -22px rgba(40, 30, 20, 0.28);
+  --aurora-1: rgba(255, 120, 80, 0.42); --aurora-2: rgba(255, 90, 120, 0.25); --aurora-3: rgba(255, 200, 120, 0.36); --aurora-4: rgba(130, 120, 255, 0.2);
 }
 
 [data-theme='oled'] {
@@ -141,9 +174,13 @@
   --line: rgba(255, 255, 255, 0.12); --line-strong: rgba(255, 255, 255, 0.2);
   --glass: rgba(0, 0, 0, 0.8); --glass-strong: rgba(0, 0, 0, 0.95);
   --ambient-1: rgba(255, 77, 46, 0.08); --ambient-2: transparent;
+  --bg-rgb: 0, 0, 0; --glass-fill: rgba(8, 8, 8, 0.55); --glass-fill-strong: rgba(0, 0, 0, 0.82);
+  --aurora-1: rgba(255, 77, 46, 0.2); --aurora-2: rgba(231, 53, 62, 0.11); --aurora-3: transparent; --aurora-4: transparent;
 }
 
 [data-reduced-transparency] {
   --glass: var(--surface);
   --glass-strong: var(--surface);
+  --glass-fill: var(--surface);
+  --glass-fill-strong: var(--surface);
 }

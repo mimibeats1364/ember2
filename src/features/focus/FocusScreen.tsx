@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, CloudRain, Coffee, Disc3, Pause, Play, SkipForward, Square, Trees, Volume2, VolumeX, Wind, Orbit, AudioWaveform, Sparkles, Droplets } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { ArrowLeft, Check, CloudRain, Coffee, Disc3, Pause, Play, SkipForward, Square, Trees, Volume2, VolumeX, Wind, Orbit, AudioWaveform, Sparkles, Droplets, ParkingSquare, Inbox } from 'lucide-react';
 import { DEEP_WORK_MINUTES, deepWorkConfig, formatClock, phaseDurationMs, pomodoroConfig, remainingMs, type FocusConfig } from '@core/focus';
 import { compareTasks, isOpen } from '@core/tasks';
 import { sessionsInRange } from '@core/analytics';
@@ -7,10 +8,12 @@ import { addDays, localDateOf, startOfWeek } from '@core/dates';
 import { useList, usePrefs, useEntity } from '@/data/store';
 import { useToday } from '@/data/selectors';
 import { formatDate, formatDuration, formatRange, t, tp, type TKey } from '@/i18n';
-import { cx, Modal, Ring, Segmented } from '@/ui/components/primitives';
+import { Chips, cx, Kbd, Modal, Segmented } from '@/ui/components/primitives';
+import { LiquidOrb } from '@/ui/components/LiquidOrb';
+import { SPRING } from '@/ui/motion/springs';
 import { AMBIENT_KINDS, playAmbient, stopAmbient, type AmbientKind } from '@/platform/sound';
 import { navigate } from '@/app/ui';
-import { continueFocus, dismissFinished, endFocusSession, setFocusSound, skipFocusPhase, startFocusSession, togglePauseFocus, useFocus } from '@/app/focusStore';
+import { continueFocus, dismissFinished, endFocusSession, parkThought, setFocusSound, skipFocusPhase, startFocusSession, togglePauseFocus, useFocus } from '@/app/focusStore';
 import { useFocusTick } from '@/app/Sidebar';
 import './focus.css';
 
@@ -88,33 +91,26 @@ function Setup() {
         </div>
       </header>
       <div className="focus-setup-grid">
-        <section className="card card-glow focus-hero">
-          <Ring value={1} size={240} stroke={6}>
-            <div className="center">
-              <div className="focus-clock num">{formatClock(config.focusMin * 60_000)}</div>
-              <div className="faint small">{mode === 'deep' ? t('focus.deep') : `${config.focusMin} / ${config.breakMin} · ×${config.cycles}`}</div>
-            </div>
-          </Ring>
-          <button className="btn btn-primary btn-xl" data-focus-start onClick={start} style={{ marginTop: 26 }}>
+        <section className="card card-glow focus-hero" data-tour="focus-orb">
+          <LiquidOrb level={0.66} ring={1} size={250} calm onClick={start} label={t('focus.start')}>
+            <div className="focus-clock num">{formatClock(config.focusMin * 60_000)}</div>
+            <div className="faint small">{mode === 'deep' ? t('focus.deep') : `${config.focusMin} / ${config.breakMin} · ×${config.cycles}`}</div>
+          </LiquidOrb>
+          <button className="btn btn-primary btn-xl magnetic" data-focus-start data-pull="16" data-tour="focus-start" onClick={start} style={{ marginTop: 26 }}>
             <Play /> {t('focus.start')}
           </button>
           <p className="faint xs" style={{ marginTop: 12 }}>{t('focus.shortcutHint')}</p>
         </section>
-        <section className="card card-pad stack gap-5">
+        <section className="card card-pad stack gap-5" data-tour="focus-options">
           <Segmented value={mode} onChange={setMode} options={[{ value: 'pomodoro', label: t('focus.pomodoro') }, { value: 'deep', label: t('focus.deep') }]} />
           {mode === 'pomodoro' ? (
-            <div className="chips">
-              {['25/5', '50/10', '90/20', 'custom'].map((p) => (
-                <button key={p} className={cx('chip', preset === p && 'active')} onClick={() => setPreset(p)}>{p === 'custom' ? t('focus.custom') : p}</button>
-              ))}
-            </div>
+            <Chips value={preset} onChange={setPreset} options={['25/5', '50/10', '90/20', 'custom'].map((p) => ({ value: p, label: p === 'custom' ? t('focus.custom') : p }))} />
           ) : (
-            <div className="chips">
-              {DEEP_WORK_MINUTES.map((m) => (
-                <button key={m} className={cx('chip', deepMin === m && 'active')} onClick={() => setDeepMin(m)}>{formatDuration(m)}</button>
-              ))}
-              <button className={cx('chip', deepMin === 'custom' && 'active')} onClick={() => setDeepMin('custom')}>{t('focus.custom')}</button>
-            </div>
+            <Chips
+              value={String(deepMin)}
+              onChange={(v) => setDeepMin(v === 'custom' ? 'custom' : Number(v))}
+              options={[...DEEP_WORK_MINUTES.map((m) => ({ value: String(m), label: formatDuration(m) })), { value: 'custom', label: t('focus.custom') }]}
+            />
           )}
           {mode === 'pomodoro' && preset === 'custom' && (
             <div className="row-flex gap-3">
@@ -132,7 +128,7 @@ function Setup() {
               {candidates.map((x) => <option key={x.id} value={x.id}>{x.title}{x.durationMin ? ` · ${formatDuration(x.durationMin)}` : ''}</option>)}
             </select>
           </label>
-          <div className="field">
+          <div className="field" data-tour="focus-sound">
             <span className="field-label">{t('focus.sound')}</span>
             <div className="sound-grid">
               {AMBIENT_KINDS.map((k) => {
@@ -226,12 +222,26 @@ function Running() {
         </div>
         <h1 className="focus-task">{state.label || t('focus.noTask')}</h1>
         <div className="focus-ring">
-          <Ring value={state.status === 'awaiting' ? 1 : progress} size={Math.min(320, window.innerWidth - 80)} stroke={7} color={isBreak ? '#4FD3E0' : undefined}>
-            <div className="center">
-              <div className="focus-clock big num">{state.status === 'awaiting' ? '—' : formatClock(remaining)}</div>
-              {state.status === 'paused' && <div className="faint small">{t('common.pause')}</div>}
-            </div>
-          </Ring>
+          <LiquidOrb
+            level={state.status === 'awaiting' ? 1 : 1 - progress}
+            ring={state.status === 'awaiting' ? 1 : progress}
+            size={Math.min(330, window.innerWidth - 60, window.innerHeight * 0.42)}
+            color={isBreak ? '#4FD3E0' : undefined}
+            color2={isBreak ? '#3C7EE6' : undefined}
+            paused={state.status !== 'running'}
+            calm={isBreak}
+            onClick={state.status === 'awaiting' ? continueFocus : togglePauseFocus}
+            label={state.status === 'paused' ? t('common.resume') : t('common.pause')}
+          >
+            <div className="focus-clock big num">{state.status === 'awaiting' ? '—' : formatClock(remaining)}</div>
+            <AnimatePresence>
+              {state.status === 'paused' && (
+                <motion.div className="faint small" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  {t('common.pause')}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </LiquidOrb>
         </div>
         {state.status === 'awaiting' ? (
           <div className="stack gap-3" style={{ alignItems: 'center' }}>
@@ -262,6 +272,7 @@ function Running() {
           })}
           <input type="range" min={0} max={1} step={0.05} value={volume} aria-label={t('focus.volume')} onChange={(e) => setFocusSound(sound, Number(e.target.value))} style={{ width: 110 }} />
         </div>
+        {state.phase === 'focus' && <ParkBox />}
         <p className="faint xs" style={{ marginTop: 18 }}>{t('focus.shortcutHint')}</p>
       </div>
       {stopping && (
@@ -291,17 +302,78 @@ function Finished() {
   return (
     <div className="focus-run finished">
       <div className="focus-center">
-        <div className="done-orb"><Sparkles /></div>
+        <motion.div initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={SPRING.liquid}>
+          <LiquidOrb level={finished.completed ? 1 : 0.6} size={150}>
+            <Sparkles size={30} />
+          </LiquidOrb>
+        </motion.div>
         <h1 className="focus-task">{finished.completed ? t('focus.finishTitle') : t('focus.endedTitle')}</h1>
         <p className="muted" style={{ fontSize: 'var(--fs-md)' }}>
           {finished.focusSec < 30 ? t('focus.tooShort') : t('focus.finishBody', { duration: formatDuration(finished.focusSec / 60), task: finished.label ? t('focus.finishTask', { task: finished.label }) : '' })}
         </p>
+        {finished.parked > 0 && (
+          <button className="btn btn-subtle" style={{ marginTop: 16 }} onClick={() => { dismissFinished(false); navigate('inbox'); }}>
+            <Inbox /> {tp('focus.parkedSummary', finished.parked)}
+          </button>
+        )}
         <div className="row-flex gap-2 wrap" style={{ marginTop: 26, justifyContent: 'center' }}>
           {task && task.status !== 'done' && <button className="btn btn-primary btn-lg" onClick={() => dismissFinished(true)}><Check />{t('focus.markTaskDone')}</button>}
           <button className="btn btn-lg" onClick={() => dismissFinished(false)}><Play />{t('focus.newSession')}</button>
           <button className="btn btn-lg btn-ghost" onClick={() => { dismissFinished(false); navigate('today'); }}>{t('focus.backToToday')}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Aparcar distracciones ──────────────────────────────────────────────────────────────
+
+/** Apunta lo que te distrae en la bandeja sin salir de Focus (tecla D para escribir). */
+function ParkBox() {
+  const parked = useFocus((s) => s.parked);
+  const [text, setText] = useState('');
+  const [flash, setFlash] = useState(0);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey && !e.altKey && !(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) && !document.querySelector('.modal')) {
+        e.preventDefault();
+        ref.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  return (
+    <div className="park">
+      <div className="park-box lg-rim">
+        <ParkingSquare className="park-icon" />
+        <input
+          ref={ref}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={t('focus.parkPlaceholder')}
+          aria-label={t('focus.parkLabel')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && parkThought(text)) {
+              setText('');
+              setFlash((n) => n + 1);
+            } else if (e.key === 'Escape') {
+              e.stopPropagation();
+              ref.current?.blur();
+            }
+          }}
+        />
+        {!text && <Kbd>D</Kbd>}
+      </div>
+      <AnimatePresence mode="popLayout">
+        {parked.length > 0 && (
+          <motion.div key={flash} className="park-count" initial={{ opacity: 0, y: -8, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={SPRING.liquid}>
+            <Check size={12} /> {tp('focus.parked', parked.length)}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

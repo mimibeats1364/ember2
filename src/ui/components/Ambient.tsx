@@ -1,5 +1,36 @@
 import { useEffect, useRef } from 'react';
+import { motion, useMotionValue, useSpring } from 'motion/react';
 import { usePrefs } from '@/data/store';
+
+/**
+ * Aurora: manchas de luz del color del tema que derivan muy despacio detrás del vidrio y se
+ * desplazan un poco hacia el cursor (paralaje con muelle). Es lo que el vidrio "refracta".
+ */
+export function Aurora() {
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const x = useSpring(px, { stiffness: 40, damping: 20, mass: 1.4 });
+  const y = useSpring(py, { stiffness: 40, damping: 20, mass: 1.4 });
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (document.documentElement.hasAttribute('data-reduced-motion')) return;
+      px.set((e.clientX / window.innerWidth - 0.5) * -46);
+      py.set((e.clientY / window.innerHeight - 0.5) * -36);
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [px, py]);
+  return (
+    <div className="aurora" aria-hidden>
+      <motion.div className="aurora-layer" style={{ x, y }}>
+        <i className="aurora-blob b1" />
+        <i className="aurora-blob b2" />
+        <i className="aurora-blob b3" />
+        <i className="aurora-blob b4" />
+      </motion.div>
+    </div>
+  );
+}
 
 /**
  * Fondo vivo muy sutil: chispas que ascienden despacio. Se detiene con movimiento reducido,
@@ -78,5 +109,10 @@ export function AmbientBackground({ calm }: { calm: boolean }) {
     };
   }, [enabled]);
 
-  return <div className="ambient" aria-hidden>{enabled && <canvas ref={canvasRef} />}</div>;
+  return (
+    <>
+      {prefs.ambient && <Aurora />}
+      <div className="ambient" aria-hidden>{enabled && <canvas ref={canvasRef} />}</div>
+    </>
+  );
 }

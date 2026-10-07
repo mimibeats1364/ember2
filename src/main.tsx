@@ -8,6 +8,7 @@ import './ui/styles/base.css';
 import './ui/styles/components.css';
 import './ui/styles/layout.css';
 import './ui/styles/screens.css';
+import './ui/styles/glass.css';
 import { App } from './app/App';
 import { windowLabel } from './platform/native';
 import { setLocale } from './i18n';
@@ -16,6 +17,7 @@ import { setLocale } from './i18n';
 try {
   const theme = localStorage.getItem('ember_theme');
   if (theme) document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.glass = localStorage.getItem('ember_glass') ?? 'vivid';
   const locale = localStorage.getItem('ember_locale');
   setLocale(locale === 'en' ? 'en' : 'es');
 } catch {

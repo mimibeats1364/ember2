@@ -21,10 +21,17 @@ import {
   Timer,
   Trophy,
   Pause,
+  ListChecks,
+  GraduationCap,
+  Keyboard,
   type LucideIcon,
 } from 'lucide-react';
 import { SearchIndex, type SearchDoc, type SearchType } from '@core/search';
 import { parseInput, normalizeText } from '@core/nlp';
+import { parseCommand } from '@core/commands';
+import { motion } from 'motion/react';
+import { previewCommand, type CommandPreview } from './commandRunner';
+import { SPRING } from '@/ui/motion/springs';
 import { addDays, today as todayFn } from '@core/dates';
 import { useData, updatePrefs, getPrefs } from '@/data/store';
 import { startTimer } from '@/data/actions';
@@ -40,7 +47,9 @@ import {
   openPalette,
   openPlanDay,
   openProjectEditor,
+  openRoutineEditor,
   openTask,
+  startTour,
   toast,
   useUi,
 } from './ui';
@@ -78,6 +87,11 @@ function useCommands(): Command[] {
       c('openInbox', 'palette.commands.openInbox', Inbox, () => navigate('inbox')),
       c('openCalendar', 'palette.commands.openCalendar', CalendarDays, () => navigate('calendar'), 'C'),
       c('openHabits', 'palette.commands.openHabits', Flame, () => navigate('habits'), 'H'),
+      c('openRoutines', 'palette.commands.openRoutines', ListChecks, () => navigate('routines')),
+      c('newRoutine', 'palette.commands.newRoutine', ListChecks, () => openRoutineEditor(null)),
+      c('learn', 'palette.commands.learn', GraduationCap, () => navigate('learn')),
+      c('tour', 'palette.commands.tour', GraduationCap, () => startTour('welcome')),
+      c('shortcuts', 'palette.commands.shortcuts', Keyboard, () => useUi.setState({ cheatsheet: true }), '?'),
       c('newHabit', 'palette.commands.newHabit', Flame, () => openHabitEditor(null)),
       c('newEvent', 'palette.commands.newEvent', CalendarPlus, () => openEventEditor(null)),
       c('newNote', 'palette.commands.newNote', NotebookPen, () => openCapture('note')),
@@ -173,7 +187,7 @@ export function CommandPalette() {
 }
 
 function PaletteInner() {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => useUi.getState().paletteQuery);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -183,8 +197,13 @@ function PaletteInner() {
   const close = () => openPalette(false);
 
   const items = useMemo(() => {
-    const out: { key: string; group: string; label: ReactNode; icon: LucideIcon; hint?: string; run: () => void }[] = [];
+    const out: { key: string; group: string; label: ReactNode; icon: LucideIcon; hint?: string; run: () => void; preview?: CommandPreview }[] = [];
     const nq = normalizeText(q.trim());
+    const intent = q.trim() ? parseCommand(q, { today: todayFn() }) : null;
+    if (intent) {
+      const preview = previewCommand(intent);
+      out.push({ key: `cmd:${intent.type}`, group: t('cmd.understood'), label: preview.title, icon: preview.icon, run: preview.run, preview });
+    }
     const cmds = nq ? commands.filter((c) => normalizeText(c.label).includes(nq)) : commands.slice(0, 9);
     const hits = nq && index ? index.search(q, 14) : [];
     if (nq && hits.length === 0 && cmds.length === 0) {
@@ -224,7 +243,8 @@ function PaletteInner() {
     return out;
   }, [q, commands, index, projects]);
 
-  useEffect(() => setSel(0), [q]);
+  // Si el comando no tiene nada que hacer, la selección empieza en el siguiente resultado.
+  useEffect(() => setSel(items[0]?.preview?.disabled && items.length > 1 ? 1 : 0), [q]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -258,7 +278,7 @@ function PaletteInner() {
                 } else if (e.key === 'Enter') {
                   e.preventDefault();
                   const it = items[sel];
-                  if (it) {
+                  if (it && !it.preview?.disabled) {
                     close();
                     it.run();
                   }
@@ -276,6 +296,52 @@ function PaletteInner() {
               const header = it.group !== lastGroup ? it.group : null;
               lastGroup = it.group;
               const Icon = it.icon;
+              if (it.preview) {
+                const pv = it.preview;
+                return (
+                  <div key={it.key}>
+                    {header && <div className="menu-label">{header}</div>}
+                    <motion.button
+                      layout
+                      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={SPRING.liquid}
+                      className={cx('cmd-card lg-rim', i === sel && 'active', pv.disabled && 'disabled')}
+                      role="option"
+                      aria-selected={i === sel}
+                      onMouseMove={() => setSel(i)}
+                      onClick={() => {
+                        if (pv.disabled) return;
+                        close();
+                        pv.run();
+                      }}
+                    >
+                      <span className="cmd-head">
+                        <span className="cmd-icon"><Icon /></span>
+                        <span className="cmd-title">{pv.title}</span>
+                        {!pv.disabled && (
+                          <span className="cmd-action">
+                            {pv.actionLabel} <Kbd>↵</Kbd>
+                          </span>
+                        )}
+                      </span>
+                      {pv.lines.length > 0 && (
+                        <span className="cmd-lines">
+                          {pv.lines.map((ln, k) => (
+                            <span key={k} className={cx('cmd-line', ln.done && 'done')}>
+                              {ln.left !== undefined && <span className="cmd-left num">{ln.left}</span>}
+                              {ln.color && <i className="dot" style={{ color: ln.color }} />}
+                              <span className="ellipsis">{ln.text}</span>
+                              {ln.sub && <span className="faint xs">{ln.sub}</span>}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                      {pv.note && <span className="cmd-note">{pv.note}</span>}
+                    </motion.button>
+                  </div>
+                );
+              }
               return (
                 <div key={it.key}>
                   {header && <div className="menu-label">{header}</div>}

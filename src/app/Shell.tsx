@@ -1,17 +1,22 @@
 import { lazy, Suspense, useEffect, type LazyExoticComponent, type ReactElement } from 'react';
+import { motion } from 'motion/react';
+import { SPRING } from '@/ui/motion/springs';
 import { X } from 'lucide-react';
 import { useUi, type Screen } from './ui';
 import { Sidebar } from './Sidebar';
 import { CommandPalette } from './CommandPalette';
 import { QuickCaptureModal } from './QuickCapture';
 import { ConfirmDialog, MobileNav, Toaster } from './Overlays';
-import { FocusEngine, NativeBridge, NotificationEngine, Shortcuts, ThemeSync, TraySync } from './engines';
+import { DeepLinkBridge, DockBadgeSync, FocusEngine, IslandBridge, NativeBridge, NotificationEngine, Shortcuts, ThemeSync, TraySync } from './engines';
 import { AmbientBackground } from '@/ui/components/Ambient';
 import { ContextMenuHost, cx } from '@/ui/components/primitives';
 import { DragGhost } from '@/ui/components/dnd';
 import { TaskPanel } from '@/features/tasks/TaskPanel';
 import { TodayScreen } from '@/features/today/TodayScreen';
 import { useFocus } from './focusStore';
+import { LiveIsland } from './LiveIsland';
+import { TourHost } from './Tour';
+import { Cheatsheet, WhatsNew } from './Help';
 import { useData } from '@/data/store';
 import { t } from '@/i18n';
 
@@ -21,12 +26,14 @@ const Screens: Record<Screen, LazyExoticComponent<() => ReactElement> | (() => R
   tasks: lazy(() => import('@/features/tasks/TasksScreen')),
   calendar: lazy(() => import('@/features/calendar/CalendarScreen')),
   habits: lazy(() => import('@/features/habits/HabitsScreen')),
+  routines: lazy(() => import('@/features/routines/RoutinesScreen')),
   focus: lazy(() => import('@/features/focus/FocusScreen')),
   goals: lazy(() => import('@/features/goals/GoalsScreen')),
   projects: lazy(() => import('@/features/projects/ProjectsScreen')),
   notes: lazy(() => import('@/features/notes/NotesScreen')),
   insights: lazy(() => import('@/features/insights/InsightsScreen')),
   review: lazy(() => import('@/features/review/ReviewScreen')),
+  learn: lazy(() => import('@/features/learn/LearnScreen')),
   settings: lazy(() => import('@/features/settings/SettingsScreen')),
 };
 
@@ -50,6 +57,9 @@ export function Shell() {
       <FocusEngine />
       <NotificationEngine />
       <TraySync />
+      <DockBadgeSync />
+      <IslandBridge />
+      <DeepLinkBridge />
       <NativeBridge />
       <Shortcuts />
       <AmbientBackground calm={immersive} />
@@ -60,6 +70,7 @@ export function Shell() {
         {!immersive && <Sidebar />}
         <main className="main" id="main">
           <div className="drag-region" data-tauri-drag-region />
+          <LiveIsland />
           {storageError === 'fallback' && (
             <div className="banner" style={{ margin: '48px 24px 0' }}>
               {t('errors.storageFallback')}
@@ -67,7 +78,15 @@ export function Shell() {
           )}
           <div className="main-scroll">
             <Suspense fallback={<div className="page" />}>
-              <Screen key={route.screen + (route.id ?? '')} />
+              <motion.div
+                key={route.screen + (route.id ?? '')}
+                className="page-motion"
+                initial={{ opacity: 0, y: 16, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ ...SPRING.smooth, opacity: { duration: 0.22, ease: 'easeOut' } }}
+              >
+                <Screen />
+              </motion.div>
             </Suspense>
           </div>
         </main>
@@ -87,6 +106,9 @@ export function Shell() {
         <Editors />
       </Suspense>
       <ConfirmDialog />
+      <Cheatsheet />
+      <WhatsNew />
+      <TourHost />
       <ContextMenuHost />
       <DragGhost />
       <Toaster />

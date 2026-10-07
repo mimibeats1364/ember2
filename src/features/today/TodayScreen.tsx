@@ -1,4 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { SPRING } from '@/ui/motion/springs';
 import { ArrowRight, CalendarDays, Check, CircleCheck, Flame, Moon, Play, Plus, Sparkles, Sunrise, Target, Timer, Clock, Zap } from 'lucide-react';
 import { nowNext } from '@core/now';
 import { addDays, localDateOf } from '@core/dates';
@@ -18,9 +20,10 @@ import { CATEGORY_COLORS, colorValue } from '@/ui/theme/palette';
 import { navigate, openCapture, openEventEditor, openHabitEditor, openPlanDay, openTask, toast } from '@/app/ui';
 import { TaskRow, completeWithFeedback, startFocusOnTask } from '@/features/tasks/TaskRow';
 import { InlineAdd } from '@/features/tasks/InlineAdd';
-import { startFocusSession } from '@/app/focusStore';
+import { startFocusSession, useFocus } from '@/app/focusStore';
 import { deepWorkConfig } from '@core/focus';
 import { getPrefs } from '@/data/store';
+import { RoutineNow } from './RoutineNow';
 import './today.css';
 
 function greetingKey(h: number): TKey {
@@ -72,6 +75,8 @@ export function TodayScreen() {
         <DayStats today={today} todayTasks={todayTasks} />
       </div>
 
+      <RoutineNow hour={hour} />
+
       <div className="today-grid">
         <div className="stack gap-5">
           <section className="card card-pad reveal reveal-3" aria-labelledby="sched">
@@ -84,7 +89,7 @@ export function TodayScreen() {
                   <CalendarDays />
                   <span className="hide-mobile">{t('today.viewCalendar')}</span>
                 </button>
-                <button className="btn btn-sm btn-subtle" onClick={() => openPlanDay(today)}>
+                <button className="btn btn-sm btn-subtle" onClick={() => openPlanDay(today)} data-tour="plan-day">
                   <Sparkles />
                   {t('today.planMyDay')}
                 </button>
@@ -95,7 +100,7 @@ export function TodayScreen() {
           <HabitsToday today={today} />
         </div>
         <div className="stack gap-5">
-          <section className="card card-pad reveal reveal-3" aria-labelledby="tt">
+          <section className="card card-pad reveal reveal-3" aria-labelledby="tt" data-tour="today-tasks">
             <div className="card-header">
               <h2 className="card-title" id="tt">
                 {t('today.todayTasks')}
@@ -106,12 +111,17 @@ export function TodayScreen() {
             </div>
             <InlineAdd defaults={{ date: today }} placeholder={t('tasks.addPlaceholder')} />
             <div className="list" style={{ marginTop: 8 }}>
-              {todayTasks
-                .filter((x) => x.status !== 'dropped')
-                .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || compareTasks(a, b))
-                .map((x) => (
-                  <TaskRow key={x.id} task={x} showProject draggable />
-                ))}
+              <AnimatePresence initial={false}>
+                {todayTasks
+                  .filter((x) => x.status !== 'dropped')
+                  .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || compareTasks(a, b))
+                  .map((x) => (
+                    // Al completarse, la tarea baja a su sitio con un muelle en vez de saltar.
+                    <motion.div key={x.id} layout="position" transition={SPRING.smooth} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0, transition: { duration: 0.22 } }}>
+                      <TaskRow task={x} showProject draggable />
+                    </motion.div>
+                  ))}
+              </AnimatePresence>
             </div>
             {todayTasks.length === 0 && overdue.length === 0 && (
               <Empty compact icon={<CircleCheck />} title={t('today.emptyTasks')} action={<button className="btn btn-sm" onClick={() => openCapture('task')}><Plus />{t('today.emptyTasksCta')}</button>} />
@@ -134,6 +144,7 @@ function NowCard({ timeline, now, tasks, today }: { timeline: TimelineItem[]; no
   const elapsed = cur ? (now.getTime() - cur.start.getTime()) / (cur.end.getTime() - cur.start.getTime()) : 0;
   const minsLeft = cur ? Math.max(1, Math.round((cur.end.getTime() - now.getTime()) / 60_000)) : 0;
 
+  const focusActive = useFocus((s) => !!s.state);
   const startFocus = () => {
     if (cur?.kind === 'task') {
       const task = tasks.find((x) => x.id === cur.id);
@@ -146,7 +157,7 @@ function NowCard({ timeline, now, tasks, today }: { timeline: TimelineItem[]; no
   };
 
   return (
-    <section className="card card-glow now-card" aria-label={t('today.now')}>
+    <section className="card card-glow now-card tilt" data-tilt="2.5" aria-label={t('today.now')} data-tour="now">
       <div className="now-main">
         <div className="eyebrow accent row-flex gap-2">
           <i className="live-dot" /> {t('today.now')}
@@ -184,11 +195,18 @@ function NowCard({ timeline, now, tasks, today }: { timeline: TimelineItem[]; no
         )}
       </div>
       <div className="now-actions">
-        {(cur || nn.suggestion) && (
-          <button className="btn btn-primary btn-lg" onClick={startFocus}>
-            <Play />
-            {t('today.startFocus')}
+        {focusActive ? (
+          <button className="btn btn-primary btn-lg magnetic" onClick={() => navigate('focus')}>
+            <Timer />
+            {t('today.backToFocus')}
           </button>
+        ) : (
+          (cur || nn.suggestion) && (
+            <button className="btn btn-primary btn-lg magnetic" onClick={startFocus}>
+              <Play />
+              {t('today.startFocus')}
+            </button>
+          )
         )}
         {cur?.kind === 'task' && (
           <button className="btn btn-lg" onClick={() => { const task = tasks.find((x) => x.id === cur.id); if (task) completeWithFeedback(task); }}>
@@ -333,7 +351,7 @@ function HabitsToday({ today }: { today: string }) {
   const prefs = usePrefs();
   const due = habitsForDay(habits, index, today);
   return (
-    <section className="card card-pad reveal reveal-4" aria-labelledby="hab">
+    <section className="card card-pad reveal reveal-4" aria-labelledby="hab" data-tour="today-habits">
       <div className="card-header">
         <h2 className="card-title" id="hab">
           {t('today.habits')}

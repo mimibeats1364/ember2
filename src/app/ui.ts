@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand';
 import type { CaptureKind } from '@/data/actions';
-import type { CalendarEvent, Habit, ID, LocalDate, Project, Goal } from '@core/types';
+import type { CalendarEvent, Habit, ID, LocalDate, Project, Goal, Routine } from '@core/types';
 
 export type Screen =
   | 'today'
@@ -11,12 +11,14 @@ export type Screen =
   | 'tasks'
   | 'calendar'
   | 'habits'
+  | 'routines'
   | 'focus'
   | 'goals'
   | 'projects'
   | 'notes'
   | 'insights'
   | 'review'
+  | 'learn'
   | 'settings';
 
 export interface Route {
@@ -39,6 +41,8 @@ interface UiState {
   history: Route[];
   taskPanel: ID | null;
   paletteOpen: boolean;
+  /** Texto con el que se abre la paleta (por ejemplo, desde el tutorial). */
+  paletteQuery: string;
   capture: { kind: CaptureKind; text?: string } | null;
   habitEditor: Editor<Habit>;
   eventEditor: Editor<CalendarEvent> & ({ occurrence?: LocalDate } | null);
@@ -46,6 +50,11 @@ interface UiState {
   goalEditor: Editor<Goal>;
   areaEditor: { id: ID | null } | null;
   planDay: LocalDate | null;
+  routineEditor: Editor<Routine>;
+  routineRunner: ID | null;
+  cheatsheet: boolean;
+  whatsNew: boolean;
+  tour: { id: string; step: number } | null;
   yearReview: boolean;
   mobileSheet: 'more' | 'fab' | null;
   confirm: { title: string; body: string; confirmLabel: string; danger?: boolean; typed?: string; run: () => void } | null;
@@ -57,6 +66,7 @@ export const useUi = create<UiState>(() => ({
   history: [],
   taskPanel: null,
   paletteOpen: false,
+  paletteQuery: '',
   capture: null,
   habitEditor: null,
   eventEditor: null,
@@ -64,6 +74,11 @@ export const useUi = create<UiState>(() => ({
   goalEditor: null,
   areaEditor: null,
   planDay: null,
+  routineEditor: null,
+  routineRunner: null,
+  cheatsheet: false,
+  whatsNew: false,
+  tour: null,
   yearReview: false,
   mobileSheet: null,
   confirm: null,
@@ -88,7 +103,7 @@ export function goBack() {
 }
 
 export const openTask = (id: ID | null) => useUi.setState({ taskPanel: id });
-export const openPalette = (open = true) => useUi.setState({ paletteOpen: open });
+export const openPalette = (open = true, query = '') => useUi.setState({ paletteOpen: open, paletteQuery: query });
 export const openCapture = (kind: CaptureKind = 'task', text?: string) => useUi.setState({ capture: { kind, text }, mobileSheet: null });
 export const closeCapture = () => useUi.setState({ capture: null });
 export const openHabitEditor = (id: ID | null = null, prefill?: Partial<Habit>) => useUi.setState({ habitEditor: { id, prefill }, mobileSheet: null });
@@ -98,6 +113,9 @@ export const openProjectEditor = (id: ID | null = null, prefill?: Partial<Projec
 export const openGoalEditor = (id: ID | null = null, prefill?: Partial<Goal>) => useUi.setState({ goalEditor: { id, prefill } });
 export const openAreaEditor = (id: ID | null = null) => useUi.setState({ areaEditor: { id } });
 export const openPlanDay = (date: LocalDate | null) => useUi.setState({ planDay: date });
+export const openRoutineEditor = (id: ID | null = null, prefill?: Partial<Routine>) => useUi.setState({ routineEditor: { id, prefill }, mobileSheet: null });
+export const runRoutine = (id: ID) => useUi.setState({ routineRunner: id, mobileSheet: null, paletteOpen: false });
+export const startTour = (id: string) => useUi.setState({ tour: { id, step: 0 }, paletteOpen: false, mobileSheet: null });
 export const askConfirm = (c: NonNullable<UiState['confirm']>) => useUi.setState({ confirm: c });
 
 let toastSeq = 0;

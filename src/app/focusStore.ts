@@ -5,32 +5,34 @@
 import { create } from 'zustand';
 import * as F from '@core/focus';
 import { getMeta, setMeta } from '@/data/store';
-import { saveFocusSession, completeTask } from '@/data/actions';
+import { saveFocusSession, completeTask, createTask } from '@/data/actions';
 import { playAmbient, stopAmbient, playUiSound, type AmbientKind } from '@/platform/sound';
 
 interface FocusUi {
   state: F.FocusState | null;
   /** Resumen de la última sesión terminada (pantalla de celebración). */
-  finished: { focusSec: number; taskId: string | null; label: string; completed: boolean } | null;
+  finished: { focusSec: number; taskId: string | null; label: string; completed: boolean; parked: number } | null;
   sound: AmbientKind;
   volume: number;
+  /** Pensamientos aparcados en la bandeja durante la sesión (sin salir de Focus). */
+  parked: string[];
 }
 
-export const useFocus = create<FocusUi>(() => ({ state: null, finished: null, sound: 'none', volume: 0.5 }));
+export const useFocus = create<FocusUi>(() => ({ state: null, finished: null, sound: 'none', volume: 0.5, parked: [] }));
 
 const KEY = 'focus_state_v1';
 
 function persist() {
-  const { state, sound, volume } = useFocus.getState();
-  void setMeta(KEY, JSON.stringify({ state, sound, volume }));
+  const { state, sound, volume, parked } = useFocus.getState();
+  void setMeta(KEY, JSON.stringify({ state, sound, volume, parked }));
 }
 
 export async function restoreFocus() {
   try {
     const raw = await getMeta(KEY);
     if (!raw) return;
-    const saved = JSON.parse(raw) as { state: F.FocusState | null; sound: AmbientKind; volume: number };
-    useFocus.setState({ state: saved.state, sound: saved.sound ?? 'none', volume: saved.volume ?? 0.5 });
+    const saved = JSON.parse(raw) as { state: F.FocusState | null; sound: AmbientKind; volume: number; parked?: string[] };
+    useFocus.setState({ state: saved.state, sound: saved.sound ?? 'none', volume: saved.volume ?? 0.5, parked: saved.parked ?? [] });
     if (saved.state && saved.state.status === 'running' && saved.sound !== 'none') playAmbient(saved.sound, saved.volume);
   } catch {
     /* estado ilegible: se descarta */
@@ -38,8 +40,11 @@ export async function restoreFocus() {
 }
 
 export function startFocusSession(config: F.FocusConfig, taskId: string | null, label: string, sound: AmbientKind, volume: number) {
+  // Si ya había una sesión, se guarda antes de empezar la nueva: nunca se pierde tiempo registrado.
+  const prev = useFocus.getState().state;
+  if (prev) saveSummary(prev, F.stop(prev, Date.now()), '');
   const state = F.startFocus(config, Date.now(), taskId, label);
-  useFocus.setState({ state, finished: null, sound, volume });
+  useFocus.setState({ state, finished: null, sound, volume, parked: [] });
   playUiSound('start');
   if (sound !== 'none') playAmbient(sound, volume);
   persist();
@@ -83,11 +88,7 @@ export function setFocusSound(sound: AmbientKind, volume: number) {
   persist();
 }
 
-/** Termina y guarda la sesión. `note` = motivo opcional de interrupción. */
-export function endFocusSession(note = '') {
-  const { state } = useFocus.getState();
-  if (!state) return;
-  const summary = F.stop(state, Date.now());
+function saveSummary(state: F.FocusState, summary: ReturnType<typeof F.stop>, note: string) {
   saveFocusSession({
     taskId: state.taskId,
     label: state.label,
@@ -100,9 +101,27 @@ export function endFocusSession(note = '') {
     interrupted: summary.interrupted,
     note,
   });
+}
+
+/** Termina y guarda la sesión. `note` = motivo opcional de interrupción. */
+export function endFocusSession(note = '') {
+  const { state } = useFocus.getState();
+  if (!state) return;
+  const summary = F.stop(state, Date.now());
+  saveSummary(state, summary, note);
   stopAmbient();
-  useFocus.setState({ state: null, finished: { focusSec: summary.focusSec, taskId: state.taskId, label: state.label, completed: summary.completed } });
+  useFocus.setState({ state: null, finished: { focusSec: summary.focusSec, taskId: state.taskId, label: state.label, completed: summary.completed, parked: useFocus.getState().parked.length }, parked: [] });
   persist();
+}
+
+/** Aparca un pensamiento en la bandeja sin interrumpir la sesión. */
+export function parkThought(text: string): boolean {
+  const title = text.trim();
+  if (!title) return false;
+  createTask({ title, inbox: true });
+  useFocus.setState((s) => ({ parked: [...s.parked, title] }));
+  persist();
+  return true;
 }
 
 export function dismissFinished(markTaskDone = false) {

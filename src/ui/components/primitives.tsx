@@ -5,6 +5,7 @@ import type { Priority } from '@core/types';
 import { t, type TKey } from '@/i18n';
 import { colorValue, EMOJI_CHOICES, PALETTE_KEYS } from '@/ui/theme/palette';
 import { playUiSound } from '@/platform/sound';
+import { LiquidTrack } from '@/ui/motion/LiquidTrack';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
@@ -23,6 +24,20 @@ export function Modal(props: {
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const [leaving, setLeaving] = useState(false);
+  const onCloseRef = useRef(props.onClose);
+  onCloseRef.current = props.onClose;
+  // Cierre con animación de salida (la gota se recoge) salvo con movimiento reducido.
+  const close = useRef(() => {});
+  close.current = () => {
+    if (leaving) return;
+    if (document.documentElement.hasAttribute('data-reduced-motion')) {
+      onCloseRef.current();
+      return;
+    }
+    setLeaving(true);
+    setTimeout(() => onCloseRef.current(), 170);
+  };
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const node = ref.current;
@@ -31,7 +46,7 @@ export function Modal(props: {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        props.onClose();
+        close.current();
       } else if (e.key === 'Tab' && node) {
         const items = [...node.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => !el.hasAttribute('disabled'));
         if (items.length === 0) return;
@@ -51,19 +66,18 @@ export function Modal(props: {
       window.removeEventListener('keydown', onKey, true);
       prev?.focus?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return createPortal(
     <>
-      <div className="scrim" onClick={props.onClose} />
-      <div className="modal-wrap" onMouseDown={(e) => e.target === e.currentTarget && props.onClose()}>
-        <div ref={ref} className={cx('modal', props.wide && 'wide', props.className)} role="dialog" aria-modal="true" aria-labelledby={props.title ? titleId : undefined} aria-label={props.label}>
+      <div className={cx('scrim', leaving && 'leaving')} onClick={() => close.current()} />
+      <div className="modal-wrap" onMouseDown={(e) => e.target === e.currentTarget && close.current()}>
+        <div ref={ref} className={cx('modal', props.wide && 'wide', leaving && 'leaving', props.className)} role="dialog" aria-modal="true" aria-labelledby={props.title ? titleId : undefined} aria-label={props.label}>
           {props.title !== undefined && (
             <div className="modal-head">
               <h2 className="modal-title" id={titleId}>
                 {props.title}
               </h2>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={props.onClose} aria-label={t('a11y.close')} data-close>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => close.current()} aria-label={t('a11y.close')} data-close>
                 <X />
               </button>
             </div>
@@ -345,10 +359,74 @@ export function Empty(props: { icon: ReactNode; title: string; body?: string; ac
 // ── Controles ──────────────────────────────────────────────────────────────────────────
 
 export function Segmented<T extends string>(props: { value: T; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; label?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<T | null>(null);
+  const drag = useRef<{ x: number; active: boolean; id: number } | null>(null);
+  const suppressClick = useRef(false);
+  const itemAt = (clientX: number): T | null => {
+    const items = ref.current?.querySelectorAll<HTMLElement>('.seg-item');
+    if (!items) return null;
+    for (const el of items) {
+      const r = el.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) return el.dataset.value as T;
+    }
+    return null;
+  };
   return (
-    <div className="seg" role="tablist" aria-label={props.label}>
+    <div
+      ref={ref}
+      className={cx('seg', preview !== null && 'pressing')}
+      role="tablist"
+      aria-label={props.label}
+      // Mantener pulsado y deslizar: la gota sigue al dedo y se suelta en la opción elegida.
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        drag.current = { x: e.clientX, active: false, id: e.pointerId };
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        if (!d.active && Math.abs(e.clientX - d.x) > 5) {
+          d.active = true;
+          ref.current?.setPointerCapture(d.id);
+        }
+        if (d.active) {
+          const v = itemAt(e.clientX);
+          if (v !== null) setPreview(v);
+        }
+      }}
+      onPointerUp={() => {
+        const d = drag.current;
+        drag.current = null;
+        if (d?.active) {
+          suppressClick.current = true;
+          setTimeout(() => (suppressClick.current = false), 0);
+          if (preview !== null && preview !== props.value) props.onChange(preview);
+        }
+        setPreview(null);
+      }}
+      onPointerCancel={() => {
+        drag.current = null;
+        setPreview(null);
+      }}
+    >
+      <LiquidTrack
+        container={ref}
+        deps={[props.value, preview, props.options.length]}
+        getActive={(c) => (preview !== null ? c.querySelector(`[data-value="${CSS.escape(preview)}"]`) : c.querySelector('.seg-item.active'))}
+        axis="x"
+      />
       {props.options.map((o) => (
-        <button key={o.value} role="tab" aria-selected={props.value === o.value} className={cx('seg-item', props.value === o.value && 'active')} onClick={() => props.onChange(o.value)}>
+        <button
+          key={o.value}
+          role="tab"
+          data-value={o.value}
+          aria-selected={props.value === o.value}
+          className={cx('seg-item', props.value === o.value && 'active')}
+          onClick={() => {
+            if (!suppressClick.current) props.onChange(o.value);
+          }}
+        >
           {o.label}
         </button>
       ))}
@@ -357,8 +435,10 @@ export function Segmented<T extends string>(props: { value: T; options: { value:
 }
 
 export function Chips<T extends string>(props: { value: T; options: { value: T; label: ReactNode; count?: number }[]; onChange: (v: T) => void; scroll?: boolean; label?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
   return (
-    <div className={cx('chips', props.scroll && 'scroll')} role="tablist" aria-label={props.label}>
+    <div ref={ref} className={cx('chips', props.scroll && 'scroll')} role="tablist" aria-label={props.label}>
+      <LiquidTrack container={ref} deps={[props.value, props.options.length]} getActive={(c) => c.querySelector('.chip.active')} axis="both" />
       {props.options.map((o) => (
         <button key={o.value} role="tab" aria-selected={props.value === o.value} className={cx('chip', props.value === o.value && 'active')} onClick={() => props.onChange(o.value)}>
           {o.label}

@@ -1,8 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permisos mínimos de Ember para la ventana principal y la captura rápida.",
-  "windows": ["main", "capture"],
+  "description": "Permisos mínimos de Ember para la ventana principal, la captura rápida y la isla de Focus.",
+  "windows": [
+    "main",
+    "capture",
+    "island"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -17,6 +21,11 @@
     "fs:allow-read-text-file",
     "opener:allow-open-url",
     "sql:default",
-    "sql:allow-execute"
+    "sql:allow-execute",
+    "core:window:allow-set-effects",
+    "core:window:allow-set-theme",
+    "core:window:allow-set-badge-count",
+    "core:window:allow-is-focused",
+    "deep-link:default"
   ]
 }

@@ -3,7 +3,8 @@
  * entidades "a mano" para que las reglas (recurrencia, rachas, bandeja…) vivan en un sitio.
  */
 import { addDays, instantOf, localTimeZone, today as todayFn, toLocalDate, weekdayOf } from '@core/dates';
-import { habitLogId } from '@core/habits';
+import { habitLogId, isComplete } from '@core/habits';
+import { runProgress } from '@core/routines';
 import { shortId, uuidv7 } from '@core/ids';
 import type { ParsedInput } from '@core/nlp';
 import { nextRecurringFields } from '@core/tasks';
@@ -17,6 +18,9 @@ import type {
   ID,
   LocalDate,
   Note,
+  Routine,
+  RoutineRun,
+  RoutineStep,
   Task,
   TimeEntry,
   WeeklyReview,
@@ -38,6 +42,8 @@ import {
   habitFields,
   noteFields,
   reviewId,
+  routineFields,
+  routineRunId,
   tagFields,
   taskFields,
 } from './defaults';
@@ -87,6 +93,15 @@ export function toggleTask(id: ID): Task | null {
 
 export function rescheduleTask(id: ID, date: LocalDate | null, time: string | null = null): void {
   transaction(t('tasks.movedToast'), () => updateEntity('tasks', id, { date, time, inbox: false }));
+}
+
+/** Reprograma varias tareas en un solo paso (un único "deshacer"). */
+export function rescheduleMany(ids: ID[], date: LocalDate | null): number {
+  if (ids.length === 0) return 0;
+  transaction(t('tasks.rescheduledMany', { count: ids.length }), () => {
+    for (const id of ids) updateEntity('tasks', id, { date, inbox: false });
+  });
+  return ids.length;
 }
 
 export function dropTask(id: ID): void {
@@ -381,6 +396,73 @@ export function saveFocusSession(s: {
     interrupted: s.interrupted,
     interruptionNote: s.note,
   });
+}
+
+// ── Rutinas ────────────────────────────────────────────────────────────────────────────
+
+export function newRoutineStep(title: string, durationMin: number | null = null, habitId: ID | null = null): RoutineStep {
+  return { id: shortId(), title, durationMin, habitId };
+}
+
+export function createRoutine(fields: Partial<Fields<Routine>>): Routine {
+  return transaction(t('routines.created'), () => createEntity('routines', routineFields(fields)));
+}
+
+export function updateRoutine(id: ID, patch: Partial<Routine>): void {
+  transaction(t('common.edit'), () => updateEntity('routines', id, patch));
+}
+
+export function deleteRoutine(id: ID): void {
+  transaction(t('routines.deleted'), () => deleteEntity('routines', id));
+}
+
+export function getRoutineRun(routineId: ID, date: LocalDate): RoutineRun | undefined {
+  const run = getEntity('routineRuns', routineRunId(routineId, date));
+  return run && !run.deletedAt ? run : undefined;
+}
+
+/**
+ * Marca o desmarca un paso. Si el paso está vinculado a un hábito, al marcarlo se registra el
+ * hábito como hecho (desmarcar el paso no borra el registro del hábito: nunca se pierden datos).
+ * Devuelve el nombre del hábito registrado, si hubo.
+ */
+export function setRoutineStep(routineId: ID, date: LocalDate, stepId: ID, done: boolean): { habitLogged: string | null; completed: boolean } {
+  const routine = getEntity('routines', routineId);
+  if (!routine) return { habitLogged: null, completed: false };
+  let habitLogged: string | null = null;
+  let completed = false;
+  transaction(t('routines.stepToast'), () => {
+    const id = routineRunId(routineId, date);
+    const prev = getRoutineRun(routineId, date);
+    const ids = new Set(prev?.doneStepIds ?? []);
+    if (done) ids.add(stepId);
+    else ids.delete(stepId);
+    const doneStepIds = routine.steps.map((s) => s.id).filter((x) => ids.has(x));
+    const progress = runProgress(routine, { doneStepIds });
+    completed = progress.complete && !prev?.completedAt;
+    upsertEntity('routineRuns', id, { doneStepIds, completedAt: progress.complete ? (prev?.completedAt ?? new Date().toISOString()) : null }, () => ({
+      routineId,
+      date,
+      doneStepIds,
+      completedAt: null,
+    }));
+    const step = routine.steps.find((s) => s.id === stepId);
+    if (done && step?.habitId) {
+      const habit = getEntity('habits', step.habitId);
+      const log = getEntity('habitLogs', habitLogId(step.habitId, date));
+      if (habit && !habit.deletedAt && !isComplete(habit, log && !log.deletedAt ? log : undefined)) {
+        upsertEntity('habitLogs', habitLogId(habit.id, date), { status: 'done', value: habit.target }, () => ({ habitId: habit.id, date, status: 'done' as const, value: habit.target, note: '' }));
+        habitLogged = habit.name;
+      }
+    }
+  });
+  return { habitLogged, completed };
+}
+
+export function resetRoutineRun(routineId: ID, date: LocalDate): void {
+  const run = getRoutineRun(routineId, date);
+  if (!run) return;
+  transaction(t('routines.reset'), () => updateEntity('routineRuns', run.id, { doneStepIds: [], completedAt: null }));
 }
 
 // ── Reflexión ──────────────────────────────────────────────────────────────────────────

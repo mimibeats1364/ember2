@@ -2,7 +2,7 @@
  * Procesos de fondo de la ventana principal: tema, focus, notificaciones, barra de menús,
  * puente nativo y atajos. Componentes sin UI montados una vez.
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { expandEvent } from '@core/calendar';
 import { addDays, instantOf, localDateTime, parseTime, toLocalDate, today as todayFn } from '@core/dates';
 import { computeStreak, indexLogs, isComplete, isScheduled } from '@core/habits';
@@ -12,12 +12,14 @@ import { parseInput } from '@core/nlp';
 import { getPrefs, undo, useData, useList, usePrefs, flush } from '@/data/store';
 import { useToday } from '@/data/selectors';
 import { formatDuration, setLocale, t, tp, type TKey } from '@/i18n';
-import { notify, onCapture, onNativeAction, openExternal, registerCaptureShortcut, setTrayTitle, updateTray } from '@/platform/native';
+import { notify, onCapture, onIslandCommand, onIslandReady, onMainFocusChange, onNativeAction, openExternal, registerCaptureShortcut, sendIslandState, setDockBadge, setIslandVisible, setTrayTitle, setWindowGlass, setWindowTheme, showMainWindow, supportsWindowGlass, updateTray } from '@/platform/native';
 import { setUiSoundsEnabled } from '@/platform/sound';
 import { isTauri } from '@/platform/env';
 import { navigate, openCapture, openPalette, openTask, toast, useUi, type Screen } from './ui';
 import { tickFocus, togglePauseFocus, useFocus, startFocusSession } from './focusStore';
 import { performCapture } from './QuickCapture';
+import { runIslandCommand, type IslandCommand } from './LiveIsland';
+import { listenDeepLinks } from './deeplinks';
 import { pomodoroConfig } from '@core/focus';
 import type { CaptureKind } from '@/data/actions';
 
@@ -38,6 +40,7 @@ export function ThemeSync() {
     const mqt = window.matchMedia('(prefers-reduced-transparency: reduce)');
     root.toggleAttribute('data-reduced-transparency', prefs.reducedTransparency || mqt.matches);
     root.style.setProperty('--text-scale', String(prefs.textScale));
+    root.dataset.glass = prefs.glass;
     setLocale(prefs.locale);
     setUiSoundsEnabled(prefs.uiSounds);
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -45,11 +48,95 @@ export function ThemeSync() {
     try {
       localStorage.setItem('ember_theme', prefs.theme);
       localStorage.setItem('ember_locale', prefs.locale);
+      localStorage.setItem('ember_glass', prefs.glass);
     } catch {
       /* almacenamiento local no disponible */
     }
     return () => mq.removeEventListener('change', apply);
-  }, [prefs.theme, prefs.reducedMotion, prefs.reducedTransparency, prefs.textScale, prefs.locale, prefs.uiSounds]);
+  }, [prefs.theme, prefs.reducedMotion, prefs.reducedTransparency, prefs.textScale, prefs.locale, prefs.uiSounds, prefs.glass]);
+
+  // Vidrio nativo de macOS: primero se aplica el efecto y después se vuelve transparente la
+  // página, para que nunca se vea el escritorio sin desenfocar.
+  const wantGlass = prefs.windowGlass && !prefs.reducedTransparency && prefs.glass !== 'off' && supportsWindowGlass();
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const ok = await setWindowGlass(wantGlass);
+      if (alive) document.documentElement.toggleAttribute('data-window-glass', ok && wantGlass);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wantGlass]);
+  useEffect(() => {
+    void setWindowTheme(prefs.theme === 'light' ? 'light' : 'dark');
+  }, [prefs.theme]);
+  return null;
+}
+
+/**
+ * Isla de Focus nativa: se muestra cuando hay una sesión y Ember no está delante, y se oculta
+ * en cuanto vuelves a la ventana principal (que ya enseña el temporizador).
+ */
+export function IslandBridge() {
+  const prefs = usePrefs();
+  const active = useFocus((s) => !!s.state);
+  const [mainFocused, setMainFocused] = useState(true);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let un: (() => void) | undefined;
+    void onMainFocusChange(setMainFocused).then((u) => (un = u));
+    return () => un?.();
+  }, []);
+  useEffect(() => {
+    if (!isTauri()) return;
+    const send = () => void sendIslandState({ state: useFocus.getState().state, theme: prefs.theme, glass: prefs.windowGlass });
+    send();
+    const unsub = useFocus.subscribe(send);
+    let un: (() => void) | undefined;
+    void onIslandReady(send).then((u) => (un = u));
+    return () => {
+      unsub();
+      un?.();
+    };
+  }, [prefs.theme, prefs.windowGlass]);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let un: (() => void) | undefined;
+    void onIslandCommand((cmd) => {
+      runIslandCommand(cmd as IslandCommand);
+      if (cmd === 'open') void showMainWindow();
+    }).then((u) => (un = u));
+    return () => un?.();
+  }, []);
+  const visible = isTauri() && prefs.focusIsland && active && !mainFocused;
+  useEffect(() => {
+    void setIslandVisible(visible);
+  }, [visible]);
+  return null;
+}
+
+/** Enlaces ember:// desde Atajos de Apple, Siri, Raycast… */
+export function DeepLinkBridge() {
+  const ready = useData((s) => s.ready);
+  useEffect(() => {
+    if (!ready) return;
+    let un: (() => void) | undefined;
+    void listenDeepLinks().then((u) => (un = u));
+    return () => un?.();
+  }, [ready]);
+  return null;
+}
+
+/** Insignia del Dock: tareas abiertas de hoy (incluidas las atrasadas). */
+export function DockBadgeSync() {
+  const tasks = useList('tasks');
+  const today = useToday();
+  const enabled = usePrefs().dockBadge;
+  const count = useMemo(() => (enabled ? tasks.filter((x) => isOpen(x) && !x.parentId && ((x.date !== null && x.date <= today) || (x.deadline !== null && x.deadline <= today))).length : 0), [tasks, today, enabled]);
+  useEffect(() => {
+    void setDockBadge(count);
+  }, [count]);
   return null;
 }
 
@@ -338,12 +425,17 @@ export function Shortcuts() {
         return;
       }
       if (mod || e.altKey || isTyping(e)) return;
-      const anyOverlay = ui.paletteOpen || ui.capture || ui.habitEditor || ui.eventEditor || ui.projectEditor || ui.goalEditor || ui.confirm || ui.planDay || ui.yearReview;
+      const anyOverlay = ui.paletteOpen || ui.capture || ui.habitEditor || ui.eventEditor || ui.projectEditor || ui.goalEditor || ui.confirm || ui.planDay || ui.yearReview || ui.routineEditor || ui.routineRunner || ui.cheatsheet || ui.whatsNew || ui.tour;
       if (e.key === 'Escape') {
         if (ui.taskPanel && !anyOverlay) useUi.setState({ taskPanel: null });
         return;
       }
       if (anyOverlay || document.querySelector('.modal')) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        useUi.setState({ cheatsheet: true });
+        return;
+      }
       const s = ref.current;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       const map: Record<string, () => void> = {
