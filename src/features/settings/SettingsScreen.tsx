@@ -7,7 +7,8 @@ import { setVacation } from '@/data/actions';
 import { DEFAULT_SHORTCUTS } from '@/data/defaults';
 import { hasDemo, loadDemoData, removeDemoData } from '@/data/seed';
 import { formatDuration, t, weekdayName, type TKey } from '@/i18n';
-import { connectSync, disconnectSync, generateSyncCode, getSyncCode, keepCurrentVersion, keepDiscardedVersion, loadSyncConfig, reuploadAll, syncNow, useSync, type SyncErrorCode } from '@/data/sync';
+import { connectSync, disconnectSync, generateSyncCode, getSyncCode, joinLink, keepCurrentVersion, keepDiscardedVersion, loadSyncConfig, reuploadAll, serverServesApp, syncNow, useJoinInvite, useSync, type SyncErrorCode } from '@/data/sync';
+import { QrCode } from '@/ui/components/QrCode';
 import { cx, Field, PendingBadge, Segmented, Switch, Kbd } from '@/ui/components/primitives';
 import { THEMES } from '@/ui/theme/palette';
 import { AMBIENT_KINDS } from '@/platform/sound';
@@ -381,13 +382,15 @@ function DataSection() {
 
 function SyncSection() {
   const sync = useSync();
+  const invite = useJoinInvite();
   const conflicts = useList('conflicts')
     .filter((c) => !c.resolvedAt)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const [mode, setMode] = useState<'create' | 'join'>('create');
-  const [server, setServer] = useState(sync.server);
+  const [mode, setMode] = useState<'create' | 'join'>(invite.code ? 'join' : 'create');
+  const [server, setServer] = useState(invite.server ?? sync.server);
   const [newCode, setNewCode] = useState(() => generateSyncCode());
-  const [joinCode, setJoinCode] = useState('');
+  const [joinCode, setJoinCode] = useState(invite.code ?? '');
+  const [qr, setQr] = useState<{ link: string; app: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<SyncErrorCode | null>(null);
@@ -404,7 +407,10 @@ function SyncSection() {
     const res = await connectSync(server, mode === 'create' ? newCode : joinCode, mode);
     setBusy(false);
     if (!res.ok) setError(res.error);
-    else toast(t('sync.connected'), { kind: 'success' });
+    else {
+      useJoinInvite.setState({ server: null, code: null });
+      toast(t('sync.connected'), { kind: 'success' });
+    }
   };
   return (
     <div className="stack gap-4">
@@ -421,6 +427,7 @@ function SyncSection() {
             <Field label={t('sync.server')} hint={t('sync.serverHint')}>
               <input className="input" value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://sync.tu-dominio.com" spellCheck={false} autoCapitalize="off" />
             </Field>
+            {mode === 'join' && invite.code && <div className="banner small">{t('sync.inviteWarning')}</div>}
             {mode === 'create' ? (
               <>
                 <Field label={t('sync.yourCode')} hint={t('sync.codeHint')}>
@@ -461,8 +468,30 @@ function SyncSection() {
               <p className="faint xs">{t('sync.lastResult', { pulled: sync.last.pulled, pushed: sync.last.pushed })}</p>
             )}
             {sync.status === 'error' && sync.error && <div className="banner small">{t(`sync.errors.${sync.error}` as TKey)}</div>}
+            {qr && (
+              <div className="sync-qr">
+                {qr.app ? (
+                  <>
+                    <QrCode value={qr.link} label={t('sync.qrLabel')} />
+                    <div className="stack gap-2">
+                      <b className="small">{t('sync.qrTitle')}</b>
+                      <p className="muted small">{t('sync.qrBody')}</p>
+                      <p className="faint xs">{t('sync.qrPrivate')}</p>
+                      <div><button className="btn btn-sm btn-ghost" onClick={() => setQr(null)}>{t('sync.hide')}</button></div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="muted small">{t('sync.qrNoApp')}</p>
+                )}
+              </div>
+            )}
             <div className="row-flex gap-2 wrap">
               <button className="btn btn-primary btn-sm" disabled={sync.status === 'syncing'} onClick={() => void syncNow()}><RotateCcw />{t('sync.now')}</button>
+              {!qr && (
+                <button className="btn btn-sm" onClick={async () => { const [link, app] = await Promise.all([joinLink(), serverServesApp()]); if (link) setQr({ link, app }); }}>
+                  <Smartphone />{t('sync.addDevice')}
+                </button>
+              )}
               {sync.error === 'no_space' && <button className="btn btn-sm" onClick={() => void reuploadAll()}><Upload />{t('sync.reupload')}</button>}
               <button className="btn btn-sm btn-ghost" onClick={() => askConfirm({ title: t('sync.disconnectTitle'), body: t('sync.disconnectBody'), confirmLabel: t('sync.disconnect'), run: () => void disconnectSync() })}>{t('sync.disconnect')}</button>
             </div>

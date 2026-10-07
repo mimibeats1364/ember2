@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { SPRING } from '@/ui/motion/springs';
-import { ArrowRight, CalendarDays, Check, CircleCheck, Flame, Moon, Play, Plus, Sparkles, Sunrise, Target, Timer, Clock, Zap } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, CircleCheck, Feather, Flame, Moon, Play, Plus, Sparkles, Sunrise, Target, Timer, Clock, X, Zap } from 'lucide-react';
 import { nowNext } from '@core/now';
 import { addDays, localDateOf } from '@core/dates';
 import { compareTasks, isOpen, isOverdue } from '@core/tasks';
@@ -25,6 +25,8 @@ import { deepWorkConfig } from '@core/focus';
 import { getPrefs } from '@/data/store';
 import { RoutineNow } from './RoutineNow';
 import { openOrbit } from '@/features/orbit/store';
+import { lightenDay } from '@core/orbit/skills';
+import { busyForDate, schedulePrefs } from '@/data/schedule';
 import './today.css';
 
 function greetingKey(h: number): TKey {
@@ -75,6 +77,8 @@ export function TodayScreen() {
       <div className="reveal reveal-1">
         <NowCard timeline={timeline} now={now} tasks={tasks} today={today} />
       </div>
+
+      {!evening && <OverloadHint today={today} now={now} tasks={tasks} />}
 
       <div className="reveal reveal-2">
         <DayStats today={today} todayTasks={todayTasks} />
@@ -247,6 +251,55 @@ function NowCard({ timeline, now, tasks, today }: { timeline: TimelineItem[]; no
           <ArrowRight className="faint" />
         </div>
       )}
+    </section>
+  );
+}
+
+// ── Aviso de día imposible ─────────────────────────────────────────────────────────────
+
+const OVERLOAD_KEY = 'ember_overload_dismissed';
+
+/**
+ * Si lo planificado para hoy no cabe en el tiempo libre real, se dice una vez, sin alarma, y
+ * Orbit ofrece aligerarlo. Solo aparece cuando hay algo que se pueda mover de verdad.
+ */
+function OverloadHint({ today, now, tasks }: { today: string; now: Date; tasks: Task[] }) {
+  const events = useData((s) => s.c.events);
+  const habits = useData((s) => s.c.habits);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(OVERLOAD_KEY) === today;
+    } catch {
+      return false;
+    }
+  });
+  const minute = Math.floor(now.getTime() / 900_000);
+  const r = useMemo(
+    () => lightenDay({ date: today, now, tasks, fixedBusyFor: (d) => busyForDate(d, undefined, { withTasks: false }), prefs: schedulePrefs() }),
+    // Se recalcula cada cuarto de hora o cuando cambian tareas, eventos o hábitos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [today, tasks, events, habits, minute],
+  );
+  if (dismissed || r.fits || r.changes.length === 0 || r.loadMin - r.capacityMin < 30) return null;
+  const dismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(OVERLOAD_KEY, today);
+    } catch {
+      // Sin almacenamiento: se vuelve a enseñar la próxima vez, no pasa nada.
+    }
+  };
+  return (
+    <section className="card card-pad-sm overload reveal">
+      <span className="orbit-dot" aria-hidden />
+      <p className="grow small">{t('today.overload', { load: formatDuration(r.loadMin), free: formatDuration(r.capacityMin) })}</p>
+      <button className="btn btn-sm" onClick={() => openOrbit(t('orbit.examples.lighten'))}>
+        <Feather />
+        {t('today.overloadCta')}
+      </button>
+      <button className="btn btn-ghost btn-icon btn-sm" onClick={dismiss} aria-label={t('a11y.close')}>
+        <X />
+      </button>
     </section>
   );
 }

@@ -112,10 +112,11 @@ export class HttpTransport implements Transport {
     }
   }
 
-  /** ¿Responde un servidor de sincronización de Ember en esa dirección? */
-  async health(): Promise<void> {
-    const body = (await this.call('/v1/health', { root: true })) as { service?: string } | null;
+  /** ¿Responde un servidor de sincronización de Ember en esa dirección? ¿Sirve también la app? */
+  async health(): Promise<{ app: boolean }> {
+    const body = (await this.call('/v1/health', { root: true })) as { service?: string; app?: boolean } | null;
     if (body?.service !== 'ember-sync') throw new SyncHttpError('bad_response');
+    return { app: body.app === true };
   }
 
   /** Comprueba que el servidor responde y que el espacio de este código existe y es tuyo. */

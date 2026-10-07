@@ -30,6 +30,26 @@ interface SyncState {
 
 export const useSync = create<SyncState>(() => ({ configured: false, server: '', status: 'off', lastSyncAt: null, error: null, last: null }));
 
+/** Invitación abierta desde el QR (`/?join=…`): solo rellena el formulario, nunca une sola. */
+export const useJoinInvite = create<{ server: string; code: string } | { server: null; code: null }>(() => ({ server: null, code: null }));
+
+/** ¿Tu servidor sirve también la app web? (entonces el QR abre Ember directamente) */
+export async function serverServesApp(): Promise<boolean> {
+  const [server, code] = await Promise.all([getMeta(META.server), getMeta(META.code)]);
+  if (!server || !code) return false;
+  try {
+    return (await new HttpTransport(server, await keysFor(code)).health()).app;
+  } catch {
+    return false;
+  }
+}
+
+/** Enlace que, abierto en otro dispositivo, rellena el formulario para unirse. */
+export async function joinLink(): Promise<string | null> {
+  const [server, code] = await Promise.all([getMeta(META.server), getMeta(META.code)]);
+  return server && code ? `${server}/?join=${formatSyncCode(code)}` : null;
+}
+
 const META = { server: 'sync_server', code: 'sync_code', cursor: 'sync_cursor', full: 'sync_full', last: 'sync_last', create: 'sync_create' } as const;
 /** Tipos que no viajan: los conflictos son de cada dispositivo. */
 const LOCAL_ONLY = new Set<EntityType>(['conflicts']);

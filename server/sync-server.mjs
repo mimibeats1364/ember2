@@ -14,12 +14,16 @@
  * ese token (se guarda solo su SHA-256); las siguientes peticiones tienen que traer el mismo.
  * Leer un espacio que no existe da 404 `no_space` (así un código mal escrito no crea uno vacío).
  *
- * Variables: PORT (8787), HOST (0.0.0.0), DATA_DIR (./ember-sync-data), MAX_SPACE_MB (200).
+ * Si STATIC_DIR apunta a la app web compilada (`npm run build` → dist/), también la sirve: con
+ * un solo despliegue tienes la versión instalable para el móvil y la sincronización.
+ *
+ * Variables: PORT (8787), HOST (0.0.0.0), DATA_DIR (./ember-sync-data), MAX_SPACE_MB (200),
+ * STATIC_DIR (sin valor: no sirve la app).
  */
 import { createServer } from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { appendFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { appendFile, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const VERSION = 1;
@@ -38,11 +42,28 @@ function sameHash(a, b) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
 /**
- * @param {{ dataDir?: string, maxSpaceBytes?: number, log?: (msg: string) => void }} [opts]
+ * @param {{ dataDir?: string, staticDir?: string | null, maxSpaceBytes?: number, log?: (msg: string) => void }} [opts]
  */
 export function createSyncServer(opts = {}) {
   const dataDir = resolve(opts.dataDir ?? process.env.DATA_DIR ?? './ember-sync-data');
+  const staticRaw = opts.staticDir !== undefined ? opts.staticDir : process.env.STATIC_DIR;
+  const staticDir = staticRaw ? resolve(staticRaw) : null;
   const maxSpaceBytes = opts.maxSpaceBytes ?? Number(process.env.MAX_SPACE_MB ?? 200) * 1024 * 1024;
   const log = opts.log ?? (() => {});
   /** @type {Map<string, Promise<Space>>} */
@@ -167,10 +188,46 @@ export function createSyncServer(opts = {}) {
     });
   }
 
+  /** Sirve la app web. Las rutas desconocidas devuelven index.html (la app decide qué mostrar). */
+  async function serveStatic(req, res, pathname) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'method' });
+    let rel;
+    try {
+      rel = normalize(decodeURIComponent(pathname)).replace(/^([/\\])+/, '');
+    } catch {
+      return send(res, 400, { error: 'bad_path' });
+    }
+    let file = resolve(staticDir, rel || 'index.html');
+    // Nunca fuera de la carpeta de la app.
+    if (file !== staticDir && !file.startsWith(staticDir + sep)) return send(res, 404, { error: 'not_found' });
+    let info = await stat(file).catch(() => null);
+    if (info?.isDirectory()) {
+      file = join(file, 'index.html');
+      info = await stat(file).catch(() => null);
+    }
+    if (!info && !extname(rel)) {
+      file = join(staticDir, 'index.html');
+      info = await stat(file).catch(() => null);
+    }
+    if (!info) return send(res, 404, { error: 'not_found' });
+    const body = await readFile(file);
+    const name = file.slice(staticDir.length + 1);
+    res.writeHead(200, {
+      'content-type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
+      'content-length': body.length,
+      // Los archivos con hash no cambian nunca; la página y el service worker, siempre frescos.
+      'cache-control': name.startsWith('assets' + sep) ? 'public, max-age=31536000, immutable' : 'no-cache',
+      'x-content-type-options': 'nosniff',
+      'referrer-policy': 'no-referrer',
+    });
+    res.end(req.method === 'HEAD' ? undefined : body);
+  }
+
   async function handle(req, res) {
     const url = new URL(req.url ?? '/', 'http://x');
     if (req.method === 'OPTIONS') return send(res, 204, {});
-    if (url.pathname === '/' || url.pathname === '/v1/health') return send(res, 200, { ok: true, service: 'ember-sync', version: VERSION });
+    if (url.pathname === '/v1/health' || (url.pathname === '/' && !staticDir)) return send(res, 200, { ok: true, service: 'ember-sync', version: VERSION, app: !!staticDir });
+    if (staticDir && !url.pathname.startsWith('/v1/')) return serveStatic(req, res, url.pathname);
     const m = /^\/v1\/spaces\/([^/]+)\/(pull|push)$/.exec(url.pathname);
     if (!m) return send(res, 404, { error: 'not_found' });
     const [, id, action] = m;
@@ -251,5 +308,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const port = Number(process.env.PORT ?? 8787);
   const host = process.env.HOST ?? '0.0.0.0';
   const server = createSyncServer({ log: (m) => console.log(`[ember-sync] ${m}`) });
-  server.listen(port, host, () => console.log(`[ember-sync] escuchando en http://${host}:${port} · datos en ${resolve(process.env.DATA_DIR ?? './ember-sync-data')}`));
+  server.listen(port, host, () =>
+    console.log(`[ember-sync] escuchando en http://${host}:${port} · datos en ${resolve(process.env.DATA_DIR ?? './ember-sync-data')}${process.env.STATIC_DIR ? ` · app web desde ${resolve(process.env.STATIC_DIR)}` : ''}`),
+  );
 }

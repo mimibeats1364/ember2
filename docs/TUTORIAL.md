@@ -493,9 +493,9 @@ Dentro de Ember tienes este mismo tutorial, interactivo, en **Aprende** (barra l
 
 *Mac, móvil y tablet con los mismos datos, cifrados de extremo a extremo y sin cuentas.* · 3 min
 
-1. **Un código, no una cuenta.** En **Ajustes → Sincronización** elige **Empezar en este dispositivo**. Ember genera un código de 20 caracteres: es la única llave de tus datos. Guárdalo en tu gestor de contraseñas.
+1. **Un código, no una cuenta.** En **Ajustes → Sincronización** elige **Nuevo espacio**. Ember genera un código de 20 caracteres: es la única llave de tus datos. Guárdalo en tu gestor de contraseñas.
 2. **Tu servidor.** Escribe la dirección de tu servidor de sincronización (la carpeta **server/** del proyecto tiene uno de un solo archivo y una guía para desplegarlo con HTTPS). El servidor **no puede leer nada**: solo guarda registros cifrados.
-3. **Une los demás.** En el otro dispositivo elige **Unirme con un código**, escribe el mismo servidor y el código. Recibe todo y adopta tus ajustes (nombre, tema…).
+3. **Une los demás.** En el otro dispositivo elige **Tengo un código**, escribe el mismo servidor y el código (o, si tu servidor sirve la app, pulsa **Unir otro dispositivo** y escanea el QR). Recibe todo y adopta tus ajustes (nombre, tema…).
 4. **Se sincroniza solo.** Al abrir Ember, cada minuto y medio, al volver a la ventana y unos segundos después de cada cambio. Sin conexión sigues trabajando; se pone al día al reconectar.
 5. **Si dos cambian lo mismo.** Gana el cambio más reciente y el otro queda en **Conflictos por revisar**, donde puedes recuperarlo con **Conservar la descartada**. Nunca se pierde nada en silencio.
 

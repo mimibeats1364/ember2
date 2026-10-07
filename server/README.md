@@ -20,8 +20,20 @@ node server/sync-server.mjs
 # [ember-sync] escuchando en http://0.0.0.0:8787 · datos en ./ember-sync-data
 ```
 
-En Ember: **Ajustes → Sincronización → Empezar en este dispositivo**, servidor `localhost:8787`.
-Guarda el código que aparece y, en tu otro dispositivo, **Unirme con un código**.
+En Ember: **Ajustes → Sincronización → Nuevo espacio**, servidor `localhost:8787`.
+Guarda el código que aparece y, en tu otro dispositivo, **Tengo un código**.
+
+## Todo en uno: la app web + la sincronización
+
+Si además le das la app compilada, el mismo servidor la sirve. Con un solo despliegue tienes la
+versión instalable para el móvil (PWA) y la sincronización, y desde el Mac puedes pulsar
+**Unir otro dispositivo** para enseñar un **QR**: el móvil lo escanea, abre Ember en tu servidor
+con el formulario relleno y solo tienes que pulsar **Unirme**.
+
+```bash
+npm run build
+STATIC_DIR=dist node server/sync-server.mjs
+```
 
 > Fuera de `localhost` la app exige **HTTPS**.
 
@@ -33,17 +45,18 @@ Guarda el código que aparece y, en tu otro dispositivo, **Unirme con un código
 | `HOST` | `0.0.0.0` | Interfaz |
 | `DATA_DIR` | `./ember-sync-data` | Carpeta de datos (un `.jsonl` y un `.auth` por espacio) |
 | `MAX_SPACE_MB` | `200` | Tamaño máximo cifrado por espacio |
+| `STATIC_DIR` | — | Carpeta de la app compilada (`dist/`) para servirla también |
 
 ## Desplegar con HTTPS
 
 Cualquier sitio que ejecute Node 18+ o Docker sirve. Lo importante es tener HTTPS delante y un
 volumen persistente para `DATA_DIR`.
 
-**Docker**
+**Docker** (app + sincronización en un contenedor; desde la raíz del proyecto):
 
 ```bash
-docker build -t ember-sync server/
-docker run -d --name ember-sync -p 8787:8787 -v ember-sync-data:/data ember-sync
+docker build -f server/Dockerfile -t ember .
+docker run -d --name ember -p 8787:8787 -v ember-data:/data ember
 ```
 
 **Detrás de Caddy** (certificado automático):
@@ -61,7 +74,7 @@ sync.tu-dominio.com {
 
 | Método | Ruta | |
 |---|---|---|
-| `GET` | `/v1/health` | `{ ok, service: "ember-sync", version }` |
+| `GET` | `/v1/health` | `{ ok, service: "ember-sync", version, app }` (`app`: si sirve la app web) |
 | `GET` | `/v1/spaces/:space/pull?cursor=N&limit=500` | `{ records: [{ k, v, d }], cursor, more }` · 404 `no_space` si no existe |
 | `POST` | `/v1/spaces/:space/push` | Cuerpo `{ records: [{ k, v, d }] }` → `{ accepted, cursor }` |
 

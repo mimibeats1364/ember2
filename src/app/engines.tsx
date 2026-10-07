@@ -17,7 +17,7 @@ import { setUiSoundsEnabled } from '@/platform/sound';
 import { isTauri } from '@/platform/env';
 import { navigate, openCapture, openPalette, openTask, toast, useUi, type Screen } from './ui';
 import { closeOrbit, openOrbit, useOrbit } from '@/features/orbit/store';
-import { isApplyingRemote, loadSyncConfig, syncNow, useSync } from '@/data/sync';
+import { isApplyingRemote, loadSyncConfig, syncNow, useJoinInvite, useSync } from '@/data/sync';
 import { takeLaunchAction } from '@/platform/pwa';
 import { tickFocus, togglePauseFocus, useFocus, startFocusSession } from './focusStore';
 import { performCapture } from './QuickCapture';
@@ -137,6 +137,10 @@ export function WebLaunch() {
     const action = takeLaunchAction();
     if (!action) return;
     if ('capture' in action) openCapture(action.capture);
+    else if ('join' in action) {
+      useJoinInvite.setState({ server: window.location.origin, code: action.join });
+      navigate('settings', { tab: 'sync' });
+    }
     else if ('orbit' in action) openOrbit();
     else if (['today', 'inbox', 'tasks', 'calendar', 'habits', 'routines', 'focus', 'goals', 'projects', 'notes', 'insights', 'review', 'learn', 'settings'].includes(action.screen)) navigate(action.screen as Screen);
   }, []);

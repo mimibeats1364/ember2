@@ -54,15 +54,19 @@ export async function promptInstall(): Promise<boolean> {
   return outcome === 'accepted';
 }
 
-export type LaunchAction = { capture: 'task' | 'note' | 'idea' } | { screen: string } | { orbit: true } | null;
+export type LaunchAction = { capture: 'task' | 'note' | 'idea' } | { screen: string } | { orbit: true } | { join: string } | null;
 
-/** Accesos directos del icono instalado (`/?capture=task`, `/?screen=focus`, `/?orbit=1`). */
+/**
+ * Accesos directos del icono instalado (`/?capture=task`, `/?screen=focus`, `/?orbit=1`) y el
+ * enlace del QR para unir un dispositivo (`/?join=CÓDIGO`, servido por tu servidor de Ember).
+ */
 export function takeLaunchAction(): LaunchAction {
   if (typeof window === 'undefined' || !window.location.search) return null;
   const q = new URLSearchParams(window.location.search);
   let action: LaunchAction = null;
   const capture = q.get('capture');
   if (capture === 'task' || capture === 'note' || capture === 'idea') action = { capture };
+  else if (q.get('join')) action = { join: q.get('join')! };
   else if (q.get('orbit')) action = { orbit: true };
   else if (q.get('screen')) action = { screen: q.get('screen')! };
   if (action) window.history.replaceState(null, '', window.location.pathname);

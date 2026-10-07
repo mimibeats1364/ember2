@@ -213,3 +213,37 @@ describe('direcciones de servidor', () => {
     expect(normalizeServerUrl('')).toBeNull();
   });
 });
+
+describe('el servidor también sirve la app web (un solo despliegue)', () => {
+  it('sirve la app, cae en index.html para rutas de la app y nunca sale de su carpeta', async () => {
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const root = await mkdtemp(join(tmpdir(), 'ember-static-'));
+    const app = join(root, 'dist');
+    await mkdir(join(app, 'assets'), { recursive: true });
+    await writeFile(join(app, 'index.html'), '<!doctype html><title>Ember</title>');
+    await writeFile(join(app, 'assets', 'app-123.js'), 'console.log(1)');
+    await writeFile(join(root, 'secreto.txt'), 'no');
+    const srv = createSyncServer({ dataDir: join(root, 'data'), staticDir: app });
+    await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok));
+    const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+    try {
+      const home = await fetch(`${base}/`);
+      expect(home.headers.get('content-type')).toContain('text/html');
+      expect(await home.text()).toContain('<title>Ember</title>');
+      const js = await fetch(`${base}/assets/app-123.js`);
+      expect(js.headers.get('cache-control')).toContain('immutable');
+      expect((await fetch(`${base}/?join=ABCD`)).status).toBe(200);
+      expect(await (await fetch(`${base}/settings/sync`)).text()).toContain('Ember');
+      expect((await fetch(`${base}/assets/no-existe.js`)).status).toBe(404);
+      for (const evil of ['/../secreto.txt', '/%2e%2e/secreto.txt', '/..%2fsecreto.txt', '/assets/..%2f..%2fsecreto.txt']) {
+        const res = await fetch(`${base}${evil}`);
+        expect(await res.text(), evil).not.toBe('no');
+      }
+      const health = await (await fetch(`${base}/v1/health`)).json();
+      expect(health).toMatchObject({ service: 'ember-sync', app: true });
+    } finally {
+      await new Promise<void>((ok) => srv.close(() => ok()));
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
