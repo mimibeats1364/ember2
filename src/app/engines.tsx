@@ -16,6 +16,7 @@ import { notify, onCapture, onIslandCommand, onIslandReady, onMainFocusChange, o
 import { setUiSoundsEnabled } from '@/platform/sound';
 import { isTauri } from '@/platform/env';
 import { navigate, openCapture, openPalette, openTask, toast, useUi, type Screen } from './ui';
+import { closeOrbit, openOrbit, useOrbit } from '@/features/orbit/store';
 import { tickFocus, togglePauseFocus, useFocus, startFocusSession } from './focusStore';
 import { performCapture } from './QuickCapture';
 import { runIslandCommand, type IslandCommand } from './LiveIsland';
@@ -409,6 +410,15 @@ export function Shortcuts() {
         if (label) toast(`${t('common.undo')}: ${label}`, { kind: 'info' });
         return;
       }
+      if (mod && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        if (useOrbit.getState().open) closeOrbit();
+        else {
+          openPalette(false);
+          openOrbit();
+        }
+        return;
+      }
       if (mod && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         openCapture('task');
@@ -425,7 +435,7 @@ export function Shortcuts() {
         return;
       }
       if (mod || e.altKey || isTyping(e)) return;
-      const anyOverlay = ui.paletteOpen || ui.capture || ui.habitEditor || ui.eventEditor || ui.projectEditor || ui.goalEditor || ui.confirm || ui.planDay || ui.yearReview || ui.routineEditor || ui.routineRunner || ui.cheatsheet || ui.whatsNew || ui.tour;
+      const anyOverlay = useOrbit.getState().open || ui.paletteOpen || ui.capture || ui.habitEditor || ui.eventEditor || ui.projectEditor || ui.goalEditor || ui.confirm || ui.planDay || ui.yearReview || ui.routineEditor || ui.routineRunner || ui.cheatsheet || ui.whatsNew || ui.tour;
       if (e.key === 'Escape') {
         if (ui.taskPanel && !anyOverlay) useUi.setState({ taskPanel: null });
         return;

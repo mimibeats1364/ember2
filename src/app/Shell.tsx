@@ -17,6 +17,7 @@ import { useFocus } from './focusStore';
 import { LiveIsland } from './LiveIsland';
 import { TourHost } from './Tour';
 import { Cheatsheet, WhatsNew } from './Help';
+import { OrbitPanel } from '@/features/orbit/OrbitPanel';
 import { useData } from '@/data/store';
 import { t } from '@/i18n';
 
@@ -101,6 +102,7 @@ export function Shell() {
       </div>
       {!immersive && <MobileNav />}
       <CommandPalette />
+      <OrbitPanel />
       <QuickCaptureModal />
       <Suspense fallback={null}>
         <Editors />

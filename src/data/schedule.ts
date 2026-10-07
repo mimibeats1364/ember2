@@ -9,14 +9,15 @@ import { busyFromTimeline, planDay, suggestSlots, type Interval, type PlanStrate
 import type { ID, LocalDate } from '@core/types';
 import { getPrefs, useData } from './store';
 
-export function busyForDate(date: LocalDate, excludeTaskId?: ID): Interval[] {
+/** Ocupado ese día. Con `withTasks: false` solo cuenta lo fijo (eventos y hábitos con hora). */
+export function busyForDate(date: LocalDate, excludeTaskId?: ID, opts: { withTasks?: boolean } = {}): Interval[] {
   const { c } = useData.getState();
   const habits = Object.values(c.habits).filter((h) => !h.deletedAt && !h.archived);
   const logs = Object.values(c.habitLogs);
   const items = buildTimeline(
     {
       events: Object.values(c.events),
-      tasks: Object.values(c.tasks).filter((t) => t.id !== excludeTaskId && t.status !== 'done'),
+      tasks: opts.withTasks === false ? [] : Object.values(c.tasks).filter((t) => t.id !== excludeTaskId && t.status !== 'done'),
       habits,
       habitDone: (id, d) => {
         const h = c.habits[id];
@@ -31,7 +32,7 @@ export function busyForDate(date: LocalDate, excludeTaskId?: ID): Interval[] {
 }
 
 /** Horas con más foco registradas (para la preferencia "aprender de mis datos"). */
-function learnedPeakHours(): number[] | undefined {
+export function learnedPeakHours(): number[] | undefined {
   const prefs = getPrefs();
   if (prefs.focusPeak !== 'auto') return undefined;
   const sessions = Object.values(useData.getState().c.focusSessions).filter((s) => !s.deletedAt);
@@ -57,6 +58,11 @@ export function findSlotsForTask(taskId: ID, now = new Date()): SlotSuggestion[]
     prefs: { sleep: prefs.sleep, bufferMin: prefs.bufferMin, focusPeak: prefs.focusPeak === 'auto' ? 'morning' : prefs.focusPeak },
     peakHours: learnedPeakHours(),
   });
+}
+
+export function schedulePrefs() {
+  const prefs = getPrefs();
+  return { sleep: prefs.sleep, bufferMin: prefs.bufferMin, focusPeak: prefs.focusPeak === 'auto' ? ('morning' as const) : prefs.focusPeak };
 }
 
 export function proposeDay(date: LocalDate, strategy: PlanStrategy, now = new Date()) {

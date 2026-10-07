@@ -30,6 +30,7 @@ import { formatClock, remainingMs } from '@core/focus';
 import { levelFor, totalXp } from '@core/gamification';
 import { LiquidTrack } from '@/ui/motion/LiquidTrack';
 import { LESSONS } from '@/features/learn/lessons';
+import { openOrbit } from '@/features/orbit/store';
 
 export const NAV: { screen: Screen; icon: LucideIcon; key: TKey }[] = [
   { screen: 'today', icon: Sun, key: 'nav.today' },
@@ -112,6 +113,11 @@ export function Sidebar() {
       <div className="side-foot">
         <FocusPill />
         {prefs.gamification && <LevelChip />}
+        <button className="nav-item orbit-item" onClick={() => openOrbit()} title={`${prefs.assistantName || 'Orbit'} · ${MOD}J`} data-tour="orbit">
+          <span className="orbit-dot" aria-hidden />
+          <span>{prefs.assistantName || 'Orbit'}</span>
+          <Kbd>{MOD}J</Kbd>
+        </button>
         <button className={cx('nav-item', route.screen === 'learn' && 'active')} onClick={() => navigate('learn')} title={t('nav.learn')} data-tour="learn">
           <GraduationCap />
           <span>{t('nav.learn')}</span>

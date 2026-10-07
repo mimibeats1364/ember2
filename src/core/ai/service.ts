@@ -1,64 +1,74 @@
 /**
  * Capa de IA (Orbit), independiente del proveedor.
  *
- * ESTADO: interfaz definida, sin implementación conectada. La app NO muestra funciones de IA
- * hasta que exista un proxy seguro (las claves nunca viajan en el cliente). Las funciones
- * "inteligentes" actuales (planificar el día, buscar hueco, entrada natural, resumen semanal)
- * son locales y deterministas, y no dependen de esta capa.
+ * ESTADO: Orbit funciona HOY en local (`LocalOrbit`, sobre `@core/orbit`): reglas, el
+ * planificador y el NLP de Ember, sin red ni modelos. Esta interfaz es el punto de enganche
+ * para un proveedor en la nube en el futuro, que tendría que cumplir lo mismo:
  *
- * Principios de diseño:
- * - El cliente habla con NUESTRO backend (`/ai/*`), nunca directamente con un proveedor.
+ * - El cliente hablaría con NUESTRO backend (`/ai/*`), nunca directamente con un proveedor:
+ *   las claves no viajan en el cliente.
  * - Toda propuesta que modifique datos vuelve como `ProposedChange[]` y requiere confirmación.
  * - Solo se envía el contexto mínimo necesario; nada se usa para entrenar sin consentimiento.
  */
-import type { CalendarEvent, Habit, LocalDate, Task } from '../types';
+import type { PlanStrategy, Interval, SchedulePrefs } from '../scheduler';
+import type { LocalDate, Project, Task } from '../types';
+import { extractActions } from '../orbit/extract';
+import { parseConstraints } from '../orbit/intent';
+import { breakDownProject, planWithConstraints, summarizeWeek, type WeekInput, type WeekNote, type WeekTip } from '../orbit/skills';
+import type { ProposedChange } from '../orbit/types';
+
+export type { ProposedChange };
 
 export interface AiContext {
   today: LocalDate;
-  tasks: Pick<Task, 'id' | 'title' | 'priority' | 'date' | 'deadline' | 'durationMin' | 'status'>[];
-  events: Pick<CalendarEvent, 'id' | 'title' | 'start' | 'end' | 'category'>[];
-  habits: Pick<Habit, 'id' | 'name' | 'preferredTime' | 'durationMin'>[];
+  now: Date;
+  lang: 'es' | 'en';
+  tasks: Task[];
+  projects: Project[];
+  /** Ocupado el día que se planifica. */
+  busy: Interval[];
+  prefs: SchedulePrefs;
 }
 
-export type ProposedChange =
-  | { kind: 'schedule_task'; taskId: string; date: LocalDate; time: string; durationMin: number }
-  | { kind: 'create_task'; title: string; date?: LocalDate; durationMin?: number; projectId?: string }
-  | { kind: 'create_habit'; name: string; preferredTime?: string }
-  | { kind: 'split_project'; projectId: string; phases: string[] };
-
 export interface AiProposal {
-  summary: string;
   changes: ProposedChange[];
+  /** Lo que no se pudo encajar o se dejó fuera, para explicarlo. */
+  leftOut: string[];
 }
 
 export interface AIService {
   readonly provider: string;
   available(): Promise<boolean>;
-  planDay(ctx: AiContext, instruction: string): Promise<AiProposal>;
-  breakDownProject(name: string, description: string): Promise<AiProposal>;
-  summarizeWeek(facts: string): Promise<string>;
-  notesToTasks(noteBody: string): Promise<AiProposal>;
+  planDay(ctx: AiContext, date: LocalDate, instruction: string, strategy?: PlanStrategy): Promise<AiProposal>;
+  breakDownProject(ctx: AiContext, name: string, deadline: LocalDate | null): Promise<AiProposal>;
+  summarizeWeek(input: WeekInput): Promise<{ notes: WeekNote[]; tips: WeekTip[] }>;
+  notesToTasks(ctx: AiContext, noteBody: string): Promise<AiProposal>;
 }
 
-/** Proveedor por defecto: honesto, no simula nada. */
-export class NotConfiguredAI implements AIService {
-  readonly provider = 'none';
+/** Orbit local: determinista, explicable y sin conexión. */
+export class LocalOrbit implements AIService {
+  readonly provider = 'local';
   async available() {
-    return false;
+    return true;
   }
-  private fail(): never {
-    throw new Error('ai_not_configured');
+  async planDay(ctx: AiContext, date: LocalDate, instruction: string, strategy?: PlanStrategy): Promise<AiProposal> {
+    const constraints = parseConstraints(instruction);
+    const plan = planWithConstraints({ date, now: ctx.now, tasks: ctx.tasks, busy: ctx.busy, prefs: ctx.prefs, constraints: { ...constraints, strategy: constraints.strategy ?? strategy ?? null } });
+    return { changes: plan.changes, leftOut: plan.unplaced.map((t) => t.title) };
   }
-  async planDay(): Promise<AiProposal> {
-    return this.fail();
+  async breakDownProject(ctx: AiContext, name: string, deadline: LocalDate | null): Promise<AiProposal> {
+    const r = breakDownProject({ subject: name, deadline, today: ctx.today, lang: ctx.lang, projects: ctx.projects, tasks: ctx.tasks });
+    return { changes: r.changes, leftOut: r.skipped };
   }
-  async breakDownProject(): Promise<AiProposal> {
-    return this.fail();
+  async summarizeWeek(input: WeekInput) {
+    const { notes, tips } = summarizeWeek(input);
+    return { notes, tips };
   }
-  async summarizeWeek(): Promise<string> {
-    return this.fail();
-  }
-  async notesToTasks(): Promise<AiProposal> {
-    return this.fail();
+  async notesToTasks(ctx: AiContext, noteBody: string): Promise<AiProposal> {
+    const items = extractActions(noteBody, { today: ctx.today, mode: 'note', projects: ctx.projects.map((p) => p.name) });
+    return {
+      changes: items.map(({ parsed }) => ({ kind: 'create_task' as const, title: parsed.title, date: parsed.date, time: parsed.time, durationMin: parsed.durationMin, deadline: parsed.deadline, priority: parsed.priority })),
+      leftOut: [],
+    };
   }
 }

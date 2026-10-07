@@ -24,6 +24,7 @@ export function Cheatsheet() {
       title: t('help.groups.general'),
       rows: [
         [[`${MOD}K`], t('help.rows.palette')],
+        [[`${MOD}J`], t('help.rows.orbit', { name: prefs.assistantName || 'Orbit' })],
         [[k(s.newTask)], t('help.rows.capture')],
         [[`${MOD}N`], t('help.rows.capture')],
         [[`${MOD}Z`], t('help.rows.undo')],

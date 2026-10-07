@@ -5,6 +5,8 @@ import { LiquidTrack } from '@/ui/motion/LiquidTrack';
 import { CalendarDays, CalendarPlus, ChartColumn, CircleCheck, Flame, FolderKanban, Inbox, Lightbulb, Menu, NotebookPen, Plus, RotateCcw, Settings, Sun, Target, Timer, Info, TriangleAlert, CircleCheckBig, ListChecks, GraduationCap } from 'lucide-react';
 import { t } from '@/i18n';
 import { Modal, cx } from '@/ui/components/primitives';
+import { getPrefs } from '@/data/store';
+import { openOrbit } from '@/features/orbit/store';
 import { askConfirm, dismissToast, navigate, openCapture, openEventEditor, openHabitEditor, useUi, type Screen } from './ui';
 
 export function Toaster() {
@@ -141,6 +143,7 @@ export function MobileNav() {
               </div>
             ) : (
               <div className="sheet-grid">
+                <Tile icon={<span className="orbit-dot" aria-hidden />} label={getPrefs().assistantName || 'Orbit'} onClick={() => { close(); openOrbit(); }} />
                 <Tile icon={<Inbox />} label={t('nav.inbox')} onClick={() => go('inbox')} />
                 <Tile icon={<Timer />} label={t('nav.focus')} onClick={() => go('focus')} />
                 <Tile icon={<ListChecks />} label={t('nav.routines')} onClick={() => go('routines')} />

@@ -29,6 +29,9 @@ import {
 import { SearchIndex, type SearchDoc, type SearchType } from '@core/search';
 import { parseInput, normalizeText } from '@core/nlp';
 import { parseCommand } from '@core/commands';
+import { parseOrbit } from '@core/orbit/intent';
+import { openOrbit } from '@/features/orbit/store';
+import { MOD } from '@/platform/env';
 import { motion } from 'motion/react';
 import { previewCommand, type CommandPreview } from './commandRunner';
 import { SPRING } from '@/ui/motion/springs';
@@ -80,6 +83,7 @@ function useCommands(): Command[] {
     const c = (id: string, key: TKey, icon: LucideIcon, run: () => void, hint?: string): Command => ({ id, label: t(key), icon, run, hint });
     const list: Command[] = [
       c('newTask', 'palette.commands.newTask', Plus, () => openCapture('task'), 'N'),
+      { id: 'orbit', label: t('palette.commands.orbit', { name: getPrefs().assistantName || 'Orbit' }), icon: Sparkles, run: () => openOrbit(), hint: `${MOD}J` },
       c('startFocus', 'palette.commands.startFocus', Timer, () => navigate('focus'), 'F'),
       c('planDay', 'palette.commands.planDay', Sparkles, () => openPlanDay(todayFn())),
       c('planTomorrow', 'palette.commands.planTomorrow', Sunrise, () => openPlanDay(addDays(todayFn(), 1))),
@@ -204,6 +208,14 @@ function PaletteInner() {
       const preview = previewCommand(intent);
       out.push({ key: `cmd:${intent.type}`, group: t('cmd.understood'), label: preview.title, icon: preview.icon, run: preview.run, preview });
     }
+    // Lo que Orbit entiende mejor que la paleta (planificar con condiciones, aligerar, resumir…).
+    const orbit = !intent && q.trim().length > 3 ? parseOrbit(q, { today: todayFn(), name: getPrefs().assistantName }) : null;
+    const orbitItem =
+      orbit && orbit.type !== 'unknown' && orbit.type !== 'command' && orbit.type !== 'help'
+        ? { key: 'orbit', group: getPrefs().assistantName || 'Orbit', label: t('palette.askOrbit', { name: getPrefs().assistantName || 'Orbit' }), icon: Sparkles, hint: `${MOD}J`, run: () => openOrbit(q) }
+        : null;
+    // Una lista de cosas por hacer se puede crear tal cual: Orbit queda como segunda opción.
+    if (orbitItem && orbit?.type !== 'dump') out.push(orbitItem);
     const cmds = nq ? commands.filter((c) => normalizeText(c.label).includes(nq)) : commands.slice(0, 9);
     const hits = nq && index ? index.search(q, 14) : [];
     if (nq && hits.length === 0 && cmds.length === 0) {
@@ -231,6 +243,7 @@ function PaletteInner() {
         run: () => openResult(h.doc),
       });
     }
+    if (orbitItem && orbit?.type === 'dump') out.push(orbitItem);
     if (nq && (hits.length > 0 || cmds.length > 0)) {
       out.push({
         key: 'create-tail',

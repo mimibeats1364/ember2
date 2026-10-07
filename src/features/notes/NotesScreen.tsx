@@ -3,7 +3,9 @@ import { ArrowLeft, Eye, Lightbulb, ListChecks, NotebookPen, Pencil, Pin, PinOff
 import type { Note } from '@core/types';
 import { normalizeText } from '@core/nlp';
 import { localDateOf } from '@core/dates';
-import { createEntity, deleteEntity, getEntity, updateEntity, useCollection, useEntity, useList, transaction, undo } from '@/data/store';
+import { createEntity, deleteEntity, getEntity, getPrefs, updateEntity, useCollection, useEntity, useList, transaction, undo } from '@/data/store';
+import { extractFromNote } from '@/data/orbit';
+import { pushExchange } from '@/features/orbit/store';
 import { useToday } from '@/data/selectors';
 import { ensureTags } from '@/data/actions';
 import { noteFields, taskFields } from '@/data/defaults';
@@ -179,8 +181,9 @@ function NoteEditor({ id }: { id: string }) {
       ) : (
         <div className="note-preview markdown selectable" onClick={onPreviewClick} onDoubleClick={() => setMode('edit')} dangerouslySetInnerHTML={{ __html: html || `<p class="faint">${t('notes.bodyPlaceholder')}</p>` }} />
       )}
+      <div className="row-flex gap-2 wrap" style={{ marginTop: 12 }}>
       {pending.length > 0 && (
-        <button className="btn btn-sm btn-subtle" style={{ alignSelf: 'flex-start', marginTop: 12 }} onClick={() => {
+        <button className="btn btn-sm btn-subtle" onClick={() => {
           transaction(t('notes.tasksFromChecklist', { count: pending.length }), () => {
             for (const text of pending) createEntity('tasks', taskFields({ title: text, projectId: note.projectId, areaId: note.areaId, goalId: note.goalId, inbox: !note.projectId }));
           });
@@ -190,6 +193,12 @@ function NoteEditor({ id }: { id: string }) {
           <ListChecks />{t('notes.tasksFromChecklist', { count: pending.length })}
         </button>
       )}
+      {body.trim() && (
+        <button className="btn btn-sm btn-ghost" onClick={() => { const ans = extractFromNote(note.id, body); if (ans) pushExchange(t('notes.askOrbit', { name: getPrefs().assistantName || 'Orbit' }), ans); }}>
+          <span className="orbit-dot" aria-hidden style={{ width: 14, height: 14 }} />{t('notes.askOrbit', { name: getPrefs().assistantName || 'Orbit' })}
+        </button>
+      )}
+      </div>
       <div className="note-backlinks">
         <div className="eyebrow">{t('notes.backlinks')}</div>
         {backlinks.length === 0 ? <p className="faint xs" style={{ marginTop: 4 }}>{t('notes.noBacklinks')}</p> : (

@@ -4,7 +4,7 @@ import { SPRING } from '@/ui/motion/springs';
 import { ArrowRight, CalendarDays, Check, CircleCheck, Flame, Moon, Play, Plus, Sparkles, Sunrise, Target, Timer, Clock, Zap } from 'lucide-react';
 import { nowNext } from '@core/now';
 import { addDays, localDateOf } from '@core/dates';
-import { compareTasks, isOverdue } from '@core/tasks';
+import { compareTasks, isOpen, isOverdue } from '@core/tasks';
 import { habitsForDay, isComplete, dayState } from '@core/habits';
 import { goalProgress } from '@core/progress';
 import { sessionsInRange } from '@core/analytics';
@@ -12,7 +12,7 @@ import type { TimelineItem } from '@core/calendar';
 import type { Habit, HabitLog, Task } from '@core/types';
 import { useData, useEntity, useList, usePrefs } from '@/data/store';
 import { useActiveHabits, useHabitLogIndex, useNow, useStreaks, useTimeline, useToday } from '@/data/selectors';
-import { rescheduleTask, saveCheckin, saveDayLog, toggleHabit, incrementHabit } from '@/data/actions';
+import { rescheduleMany, rescheduleTask, saveCheckin, saveDayLog, toggleHabit, incrementHabit } from '@/data/actions';
 import { dayLogId } from '@/data/defaults';
 import { formatDate, formatDuration, formatRange, t, tp, type TKey } from '@/i18n';
 import { Bar, cx, Empty, HabitCell, IconTile, RatingInput, Ring } from '@/ui/components/primitives';
@@ -24,6 +24,7 @@ import { startFocusSession, useFocus } from '@/app/focusStore';
 import { deepWorkConfig } from '@core/focus';
 import { getPrefs } from '@/data/store';
 import { RoutineNow } from './RoutineNow';
+import { openOrbit } from '@/features/orbit/store';
 import './today.css';
 
 function greetingKey(h: number): TKey {
@@ -62,6 +63,10 @@ export function TodayScreen() {
             <Target /> {dayLog.intention}
           </p>
         )}
+        <button className="today-orbit" onClick={() => openOrbit()}>
+          <span className="orbit-dot" aria-hidden />
+          {t('today.askOrbit', { name: prefs.assistantName || 'Orbit' })}
+        </button>
       </header>
 
       {showMorning && <MorningCheckin today={today} />}
@@ -555,23 +560,36 @@ function DayComplete({ today, todayTasks }: { today: string; todayTasks: Task[] 
   const sessions = useList('focusSessions');
   const dayLog = useEntity('dayLogs', dayLogId(today));
   const done = todayTasks.filter((x) => x.status === 'done').length;
+  const left = todayTasks.filter((x) => isOpen(x) && x.date === today);
   const hDone = habits.filter((h) => isComplete(h, index.get(h.id)?.get(today))).length;
   const focus = sessionsInRange(sessions, today, today).reduce((a, s) => a + s.focusSec, 0) / 60;
+  const nothing = done === 0 && hDone === 0 && focus < 1;
+  // "Día completado" solo cuando de verdad lo está; si no, un cierre neutro y sin culpa.
+  const title = left.length === 0 && done > 0 ? t('today.dayComplete') : t('today.dayClosing');
+  const tomorrow = addDays(today, 1);
   return (
     <section className="card card-pad day-complete reveal">
       <div className="row-flex gap-3 wrap">
         <span className="stat-icon"><Moon /></span>
         <div className="grow">
-          <h2 className="card-title">{t('today.dayComplete')}</h2>
-          <p className="muted small" style={{ marginTop: 2 }}>{t('today.dayCompleteBody', { tasks: tp('today.nTasks', done), habits: tp('today.nHabits', hDone), focus: formatDuration(focus) })}</p>
+          <h2 className="card-title">{title}</h2>
+          <p className="muted small" style={{ marginTop: 2 }}>
+            {nothing ? t('today.dayEmptyBody') : t('today.dayCompleteBody', { tasks: tp('today.nTasks', done), habits: tp('today.nHabits', hDone), focus: formatDuration(focus) })}
+            {left.length > 0 && <> {tp('today.leftForToday', left.length)}</>}
+          </p>
         </div>
-        <div className="row-flex gap-2">
+        <div className="row-flex gap-2 wrap">
+          {left.length > 0 && (
+            <button className="btn btn-ghost" onClick={() => { const n = rescheduleMany(left.map((x) => x.id), tomorrow); toast(tp('today.movedToTomorrow', n)); }}>
+              {tp('today.moveLeftToTomorrow', left.length)}
+            </button>
+          )}
           {!dayLog?.eveningAt && (
             <button className="btn" onClick={() => navigate('review', { tab: 'daily' })}>
               {t('today.reflect')}
             </button>
           )}
-          <button className="btn btn-primary" onClick={() => openPlanDay(addDays(today, 1))}>
+          <button className="btn btn-primary" onClick={() => openPlanDay(tomorrow)}>
             <Sunrise />
             {t('today.planTomorrow')}
           </button>

@@ -181,9 +181,12 @@ export interface PlanDayOptions {
   strategy?: PlanStrategy;
   isBlocked?: (t: Task) => boolean;
   defaultDurationMin?: number;
+  /** Tope de minutos de tareas que planificar ese día ("solo tengo 3 horas"). */
+  maxMinutes?: number | null;
 }
 
-function urgencyScore(t: Task, date: LocalDate): number {
+/** Cuánto aprieta una tarea ese día: prioridad, retraso, fecha límite cercana y si suma a algo. */
+export function urgencyScore(t: Task, date: LocalDate): number {
   let s = { 1: 40, 2: 25, 3: 10, 4: 0 }[t.priority];
   if (t.date && t.date < date) s += 18;
   if (t.deadline) s += Math.max(0, 24 - Math.max(0, diffDays(t.deadline, date)) * 4);
@@ -219,8 +222,13 @@ export function planDay(opts: PlanDayOptions): DayPlan {
   const blocks: PlannedBlock[] = [];
   const unplaced: Task[] = [];
   const peak = prefs.focusPeak === 'auto' ? null : PEAKS[prefs.focusPeak];
+  let planned = 0;
   for (const t of candidates) {
     const minutes = dur(t);
+    if (opts.maxMinutes != null && planned + minutes > opts.maxMinutes) {
+      unplaced.push(t);
+      continue;
+    }
     const slots = freeSlots(date, busy, prefs, isToday ? opts.now.getTime() : undefined);
     const fits = slots.filter((s) => s.end - s.start >= minutes * MIN);
     if (fits.length === 0) {
@@ -240,6 +248,7 @@ export function planDay(opts: PlanDayOptions): DayPlan {
     }
     const start = chosen.start;
     blocks.push({ taskId: t.id, title: t.title, start, end: start + minutes * MIN });
+    planned += minutes;
     busy.push({ start, end: start + minutes * MIN });
   }
   const freeLeft = freeSlots(date, busy, prefs, isToday ? opts.now.getTime() : undefined).reduce((acc, s) => acc + (s.end - s.start) / MIN, 0);

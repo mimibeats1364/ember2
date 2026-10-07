@@ -15,7 +15,7 @@ import { colorValue } from '@/ui/theme/palette';
 import { navigate, openAreaEditor, openProjectEditor, openTask, toast, useUi } from '@/app/ui';
 import { TaskRow } from '@/features/tasks/TaskRow';
 import { InlineAdd } from '@/features/tasks/InlineAdd';
-import { suggestPhases } from './templates';
+import { suggestPhases } from '@core/phases';
 import './projects.css';
 
 export default function ProjectsScreen() {

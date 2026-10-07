@@ -6,7 +6,8 @@ import { addDays, endOfMonth, instantOf, localTimeZone, startOfMonth, startOfWee
 import { habitLogId, isScheduled } from '@core/habits';
 import type { EntityType } from '@core/types';
 import { createEntity, deleteEntity, getMeta, setMeta, transaction, upsertEntity, useData } from './store';
-import { areaFields, dayLogFields, dayLogId, eventFields, goalFields, habitFields, milestoneFields, noteFields, projectFields, taskFields } from './defaults';
+import { areaFields, dayLogFields, dayLogId, eventFields, goalFields, habitFields, milestoneFields, noteFields, projectFields, routineFields, routineRunId, taskFields } from './defaults';
+import { shortId } from '@core/ids';
 
 const DEMO_KEY = 'demo_ids';
 
@@ -164,6 +165,30 @@ export async function loadDemoData(lang: 'es' | 'en' = 'es'): Promise<void> {
         const wake = ['07:00', '07:30', '08:00', '08:30'][Math.floor(rand() * 4)];
         ids.push({ type: 'dayLogs', id: dayLogId(date) });
         upsertEntity('dayLogs', dayLogId(date), { sleepBed: bed, sleepWake: wake, energy: 2 + Math.floor(rand() * 4), mood: 2 + Math.floor(rand() * 4), focus: 2 + Math.floor(rand() * 4), rating: 3 + Math.floor(rand() * 3) }, () => dayLogFields(date));
+      }
+    }
+
+    // Rutinas (con pasos vinculados a hábitos) y su historial reciente
+    const habitByName = (n: string) => Object.values(useData.getState().c.habits).find((h) => h.name === n && !h.deletedAt)?.id ?? null;
+    const step = (title: string, durationMin: number | null, habitId: string | null = null) => ({ id: shortId(), title, durationMin, habitId });
+    const rMorning = track('routines', createEntity('routines', routineFields({
+      name: es ? 'Mañana con calma' : 'Calm morning', icon: '☀️', color: 'amber', timeOfDay: 'morning', order: 0,
+      steps: [step(es ? 'Vaso de agua' : 'Glass of water', 1, habitByName(es ? 'Beber agua' : 'Drink water')), step(es ? 'Meditar' : 'Meditate', 10, habitByName(es ? 'Meditar' : 'Meditate')), step(es ? 'Ducha' : 'Shower', 10), step(es ? 'Elegir lo que más importa hoy' : 'Pick what matters most today', 5)],
+    })));
+    const rNight = track('routines', createEntity('routines', routineFields({
+      name: es ? 'Noche para descansar' : 'Wind-down night', icon: '🌙', color: 'violet', timeOfDay: 'night', order: 1,
+      steps: [step(es ? 'Preparar la ropa de mañana' : "Lay out tomorrow's clothes", 5), step(es ? 'Pantallas fuera' : 'Screens away', null), step(es ? 'Leer 10 páginas' : 'Read 10 pages', 15, habitByName(es ? 'Leer 10 páginas' : 'Read 10 pages')), step(es ? 'Tres líneas de diario' : 'Three journal lines', 5)],
+    })));
+    const rr = rng(7);
+    for (let k = 14; k >= 1; k--) {
+      const date = addDays(today, -k);
+      for (const routine of [rMorning, rNight]) {
+        const r = rr();
+        if (r < 0.25) continue;
+        const doneSteps = r < 0.45 ? routine.steps.slice(0, 2) : routine.steps;
+        const id = routineRunId(routine.id, date);
+        ids.push({ type: 'routineRuns', id });
+        upsertEntity('routineRuns', id, {}, () => ({ routineId: routine.id, date, doneStepIds: doneSteps.map((x) => x.id), completedAt: doneSteps.length === routine.steps.length ? instantOf(date, routine.timeOfDay === 'morning' ? 8 * 60 : 23 * 60) : null }));
       }
     }
 

@@ -1,8 +1,9 @@
 /**
- * Plantillas locales de fases para "Sugerir fases". No es IA: son desgloses habituales por tipo
- * de proyecto, elegidos por palabras clave. El usuario decide cuáles crear.
+ * Plantillas locales de fases para "Sugerir fases" y para que Orbit desglose proyectos. No es
+ * IA: son desgloses habituales por tipo de proyecto, elegidos por palabras clave. El usuario
+ * decide cuáles crear.
  */
-import { normalizeText } from '@core/nlp';
+import { normalizeText } from './nlp';
 
 interface Template {
   match: RegExp;
