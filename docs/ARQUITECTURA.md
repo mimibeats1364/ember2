@@ -21,7 +21,7 @@ Objetivo: una app real e instalable en **macOS primero**, con base compartida pa
 - en **Tauri mobile**, que es el camino más rápido porque reutiliza la misma UI, o
 - en una app **Expo/React Native**, con UI nativa, si los widgets y la sensación nativa en móvil lo justifican.
 
-La elección móvil se decidirá cuando el escritorio esté validado. La arquitectura no impide ninguna de las dos.
+Mientras tanto, la **versión web instalable (PWA)** ya cubre el móvil con la misma UI y la sincronización cifrada. La elección de una app nativa se decidirá con uso real; la arquitectura no impide ninguna de las dos.
 
 ## Capas
 
@@ -37,13 +37,13 @@ La elección móvil se decidirá cuando el escritorio esté validado. La arquite
                │                                                  └─────────────────────────┘
 ┌──────────────▼──────────────────────────────────────────────────────────────────────────┐
 │ src/core (puro, testeado): fechas · recurrencia · hábitos · tareas · calendario · NLP ·    │
-│ planificador · focus · progreso · analítica · búsqueda · estimaciones · sync · IO · IA*  │
+│ planificador · focus · progreso · analítica · búsqueda · sync cifrada · IO · Orbit      │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **La UI nunca escribe entidades directamente.** Usa `src/data/actions.ts`, que concentra las reglas: recurrencia, bandeja, rachas, sesiones de focus…
 - **El store mantiene todo en memoria**, de modo que leer es instantáneo. Escribe en disco en lotes, unos 180 ms después de cada cambio y al ocultar la ventana.
-- **Ninguna capa depende del backend.** El motor de sync (`src/core/sync/engine.ts`) habla con un `Transport` intercambiable.
+- **Ninguna capa depende del backend.** El motor de sync (`src/core/sync/engine.ts`) habla con un `Transport` intercambiable; sin sincronización configurada, Ember es 100 % local.
 
 ## Modelo de datos
 
@@ -60,29 +60,83 @@ Reglas:
 
 SQLite usa tres tablas: `entities(type, id, data JSON, updated_at, deleted)`, `outbox(type, id, updated_at)` para la cola de sincronización y `meta(key, value)`.
 
-## Sincronización (diseñada y probada; servidor pendiente)
+## Sincronización cifrada de extremo a extremo
 
-`syncOnce(replica, transport)` funciona en tres pasos:
+Opcional y sin cuentas. Todo sale de un **código de sincronización** aleatorio de 20 caracteres
+(~99 bits) que solo conocen tus dispositivos:
 
-1. **Pull** de cambios remotos desde un cursor. Por cada entidad:
-   - si no existe en local, se aplica;
-   - si la remota es más reciente según el HLC, se aplica;
-   - si cambió en ambos lados con contenido distinto, es un **conflicto**: se aplica la versión más reciente y la otra se guarda en `conflicts` para revisarla. **Nunca se borra nada en silencio.**
-2. **Push** de la cola local.
+```
+código ─PBKDF2(210k)─▶ clave maestra ─HKDF─┬─▶ espacio  (id público del buzón en el servidor)
+                                            ├─▶ token    (autoriza leer/escribir ese buzón)
+                                            ├─▶ AES-GCM 256 (contenido de cada registro)
+                                            └─▶ HMAC     (oculta el tipo y el id de cada registro)
+```
+
+El servidor guarda registros `{ k, v, d }`: `k` = HMAC(tipo:id), `v` = marca HLC y `d` = contenido
+cifrado (con `k` como dato asociado, así un registro no se puede mover a otra clave). No ve
+títulos, notas, fechas ni de qué tipo es cada cosa.
+
+| Pieza | Archivo |
+|---|---|
+| Motor (pull → conflictos → push → acuse) | `src/core/sync/engine.ts` |
+| Cifrado y código | `src/core/sync/crypto.ts` |
+| Transporte HTTP | `src/core/sync/http.ts` |
+| Réplica sobre el store, motor automático, conflictos | `src/data/sync.ts` |
+| Servidor (un archivo, sin dependencias) | `server/sync-server.mjs` |
+
+`syncOnce(replica, transport)`:
+
+1. **Pull** desde un cursor. Por cada entidad: si no existe en local, se aplica; si la remota es
+   más reciente (HLC), se aplica; si cambió en ambos lados con contenido distinto, es un
+   **conflicto**: se aplica la más reciente y la otra se guarda en `conflicts` (Ajustes →
+   Sincronización → **Conservar la descartada**). Nunca se borra nada en silencio.
+2. **Push** de la cola local (`outbox`). Al conectar un dispositivo se sube todo (fusión).
 3. **Acuse**: solo se retiran de la cola los cambios no modificados después de subirlos.
 
-`MemorySyncServer` tiene la misma semántica que el backend real y se usa en los tests: convergencia, cambios sin conexión, relojes desajustados, lápidas y duplicados.
+Detalles de la app:
 
-**Backend previsto:** API HTTP con dos endpoints (`POST /sync/push`, `GET /sync/pull?cursor=`), autenticación (email, Apple, Google) y almacenamiento por usuario. El cifrado de extremo a extremo es opcional para notas y diario.
+- Lo remoto se aplica sin volver a la cola ni al historial de ⌘Z; si hay un cambio local aún sin
+  guardar más reciente, gana el local.
+- **Al unirse** a un espacio existente, el dispositivo adopta sus ajustes (nombre, tema…).
+- Los conflictos son de cada dispositivo: no viajan.
+- Sincroniza al abrir, cada 90 s con la ventana visible, al volver a la ventana, al reconectar y
+  unos segundos después de cada cambio.
+- Unirse con un código que no existe da `no_space`: no se crea un espacio vacío por error.
 
-## IA (Orbit): interfaz lista, sin conectar
+El **servidor** se queda, por clave, con la versión de `v` mayor (la misma regla que el motor),
+guarda un log append-only con compactación, deja que el primer token reclame el espacio y, con
+`STATIC_DIR`, sirve también la app web (un solo despliegue para PWA + sync). Ver
+[server/README.md](../server/README.md).
 
-`src/core/ai/service.ts` define `AIService`, independiente del proveedor. El cliente solo hablará con nuestro backend, nunca con el proveedor directamente ni con claves en el paquete. Toda propuesta llega como `ProposedChange[]` y **requiere confirmación**. Mientras tanto, estas funciones son **locales y deterministas**:
+## Orbit: el asistente local
 
-- `planDay` y `suggestSlots` en `src/core/scheduler.ts`;
-- la entrada natural en `src/core/nlp.ts`;
-- el resumen semanal, construido solo con datos registrados;
-- las fases sugeridas, con plantillas locales.
+Orbit funciona **en el dispositivo, sin red ni modelos en la nube**. Entiende peticiones en
+español e inglés y devuelve **propuestas** (`ProposedChange[]`) que la app enseña con casillas y
+aplica en una sola transacción deshacible.
+
+| Pieza | Archivo |
+|---|---|
+| Intérprete (frase → intención + restricciones) | `src/core/orbit/intent.ts` |
+| Notas y listas → tareas (corta por acciones, no por comas) | `src/core/orbit/extract.ts` |
+| Habilidades: planificar con condiciones, aligerar, desglosar, qué hago ahora, resumen semanal | `src/core/orbit/skills.ts` |
+| Puente con los datos y aplicar | `src/data/orbit.ts` |
+| Conversación | `src/features/orbit/` |
+
+Se apoya en piezas que ya existían: el planificador (`src/core/scheduler.ts`, ahora con tope de
+minutos), el NLP (`src/core/nlp.ts`), las fases (`src/core/phases.ts`), el progreso y la
+analítica. Lo que no es suyo (agenda, rachas, focus, navegación…) lo resuelve la paleta de
+comandos (`src/core/commands.ts`).
+
+`src/core/ai/service.ts` define `AIService`; `LocalOrbit` lo implementa. Un proveedor en la nube
+sería otra implementación del mismo contrato: siempre a través de un servidor propio, con
+permiso y sin claves en el cliente.
+
+## Versión web instalable (PWA)
+
+La misma app compilada (`npm run build`) es una PWA: manifiesto, iconos (incluido el "maskable"),
+service worker (`public/sw.js`: la página se pide a la red y, sin conexión, se sirve la última
+copia; los archivos con hash, de caché) y accesos directos (Nueva tarea, Focus, Orbit). Guarda en
+IndexedDB. Con la sincronización, el móvil comparte datos con el Mac.
 
 ## Capa nativa (src-tauri)
 
@@ -95,6 +149,6 @@ SQLite usa tres tablas: `entities(type, id, data JSON, updated_at, deleted)`, `o
 ## Extensibilidad prevista
 
 - **Widgets** (WidgetKit en Mac/iPhone, Glance en Android): la app escribirá un JSON de "instantánea de hoy" en un App Group y el widget lo leerá, sin compartir la base de datos. Requiere Xcode completo y una extensión nativa.
-- **Apple Watch / Wear OS, extensión de navegador, API pública, Zapier/Make:** se conectarán al backend de sync como un cliente más del mismo protocolo.
+- **Apple Watch / Wear OS, extensión de navegador:** se conectarán al servidor de sync como un cliente más del mismo protocolo (con el código, que es lo que da acceso).
 - **Calendarios externos (Google, Apple, Outlook) y correo → tarea:** serán módulos `Integration` que produzcan `CalendarEvent` con `source` y `externalId`, el mismo camino que ya usa la importación ICS. Siempre con permiso explícito.
 - **Colaboración y proyectos compartidos:** el modelo por entidades con HLC admite añadir `ownerId` y `sharedWith` sin migraciones destructivas.

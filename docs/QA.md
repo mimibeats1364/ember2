@@ -1,10 +1,39 @@
 # QA · resultados
 
-Fecha: 6 de octubre de 2026 · macOS 27 (Apple Silicon) · Node 24.21 · Rust 1.99 · Tauri 2.12
+## 0.3.0 · 7 de octubre de 2026
+
+Sesión en la nube (Linux · Node 22 · Chromium de Playwright). Verificado aquí:
+
+- `npm test`: **153 tests** en las 4 zonas horarias de siempre. **153/153 en cada zona.**
+- `npm run typecheck` sin errores y `npm run build` correcto.
+- **En el navegador real** (Playwright, escritorio 1440×900 y móvil 390×844):
+  - Orbit: planificar con condiciones (hoy y mañana), aligerar, desglosar, notas → tareas, lista
+    libre, "¿qué hago ahora?", estado de un proyecto, resumen semanal, aplicar y deshacer.
+  - Sincronización entre **dos y tres perfiles de navegador** contra el servidor real: crear
+    espacio, unirse (los ajustes del espacio se adoptan: el nombre se conserva en ambos), una
+    tarea nueva llega al otro dispositivo, y unión desde el **QR** abriendo la app servida por
+    el propio servidor.
+  - PWA: el service worker se activa y la app **abre sin conexión** tras recargar.
+  - Aviso de día imposible, cierre del día, Novedades 0.3.0 y lecciones nuevas.
+- **Sin verificar en esta sesión:** la app nativa de macOS (no hay macOS aquí). Los cambios de la
+  0.3.0 son de la interfaz web compartida, salvo la CSP de `tauri.conf.json`, que ahora permite
+  `connect-src https: http://localhost:* http://127.0.0.1:*` para la sincronización. **Comprobar
+  en el Mac:** `npm run app:dev`, activar la sincronización con un servidor HTTPS y ver que conecta.
+
+| Suite nueva | Cubre |
+|---|---|
+| `orbit/orbit.test.ts` | Intérprete en español e inglés (condiciones, fechas, topes, estrategias), cortar listas por acciones y no por comas, notas → tareas, planificar con límites exactos y tope de horas, "prioriza X", aligerar sin tocar lo prioritario ni lo que vence, desglose con fechas sin repetir fases, "¿qué hago ahora?", resumen semanal sin juicios, contrato `AIService` |
+| `sync/e2e.test.ts` | Código y claves, cifrado autenticado (otra clave o mover un registro falla), servidor real + transporte: convergencia, el servidor no ve texto en claro, conflictos, espacios ajenos (401), código inexistente (404 sin crear nada), paginación y reinicio, sin red, URLs, la app servida sin salir de su carpeta |
+| `data/sync.test.ts` | La app completa con dos dispositivos: crear, unirse adoptando ajustes, propagar, conflicto y "Conservar la descartada", conflictos que no viajan, lápidas y desconectar |
+| `learn/lessons.test.ts` | Ahora también pasa cada ejemplo de Orbit del tutorial por el intérprete real |
+
+## 0.2.0 · 6 de octubre de 2026
+
+macOS 27 (Apple Silicon) · Node 24.21 · Rust 1.99 · Tauri 2.12
 
 ## Tests automáticos
 
-`npm test` ejecuta **90 tests** en **4 zonas horarias**: Europe/Madrid, America/New_York, Australia/Lord_Howe (cambio de hora de 30 minutos) y Asia/Kolkata (sin cambio de hora). **Resultado: 90/90 en cada zona.**
+`npm test` ejecutaba **90 tests** en **4 zonas horarias**: Europe/Madrid, America/New_York, Australia/Lord_Howe (cambio de hora de 30 minutos) y Asia/Kolkata (sin cambio de hora). **Resultado: 90/90 en cada zona.**
 
 | Suite | Cubre |
 |---|---|
@@ -37,7 +66,7 @@ Fecha: 6 de octubre de 2026 · macOS 27 (Apple Silicon) · Node 24.21 · Rust 1.
 | Buscar (⌘K) | ✅ | Test + manual (resultados al instante, sin tildes, difusa) |
 | Filtrar (prioridad, proyecto, área, etiqueta) | ✅ | Test + manual |
 | Sin conexión | ✅ | Sin dependencias de red; SQLite en el Mac; fuentes y sonidos locales |
-| Reconectar | ⏳ | El motor de sync está probado con un servidor simulado; falta el backend real |
+| Reconectar | ✅ | 0.3.0: servidor real de sincronización, tests y prueba en navegador con varios dispositivos |
 | Exportar | ✅ | Test (JSON) + diálogos nativos (JSON/CSV/ICS/Markdown) |
 | Importar | ✅ | Test (fusión sin borrar, CSV, ICS) |
 
