@@ -7,6 +7,7 @@ import { addDays, today as todayFn } from '@core/dates';
 import { parseInput } from '@core/nlp';
 import { parseCommand } from '@core/commands';
 import { parseDeepLink } from '@core/deeplink';
+import { parseOrbit } from '@core/orbit/intent';
 import { DEFAULT_SHORTCUTS } from '@/data/defaults';
 import { LESSONS, MODULES } from './lessons';
 
@@ -53,6 +54,12 @@ describe('tutorial "Aprende Ember"', () => {
     const links = LESSONS.flatMap((l) => l.links ?? []);
     expect(links.length).toBeGreaterThan(5);
     for (const ex of links) expect(parseDeepLink(ex.url, today)?.type, ex.url).toBe(ex.type);
+  });
+
+  it('cada ejemplo de Orbit se entiende como dice el tutorial', () => {
+    const examples = LESSONS.flatMap((l) => l.orbit ?? []);
+    expect(examples.length).toBeGreaterThan(5);
+    for (const ex of examples) expect(parseOrbit(ex.text, { today, name: 'Orbit' }).type, ex.text).toBe(ex.type);
   });
 
   it('los atajos del tutorial coinciden con los de la app', () => {

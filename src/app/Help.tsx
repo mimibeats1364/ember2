@@ -118,11 +118,11 @@ export function Cheatsheet() {
 }
 
 const NEWS: [string, string, string][] = [
-  ['💧', 'news.glass', 'news.glassBody'],
-  ['📋', 'news.routines', 'news.routinesBody'],
-  ['💬', 'news.commands', 'news.commandsBody'],
-  ['🏝️', 'news.island', 'news.islandBody'],
-  ['🅿️', 'news.park', 'news.parkBody'],
+  ['🪐', 'news.orbit', 'news.orbitBody'],
+  ['🪶', 'news.lighten', 'news.lightenBody'],
+  ['🔐', 'news.sync', 'news.syncBody'],
+  ['📲', 'news.mobile', 'news.mobileBody'],
+  ['🌙', 'news.closing', 'news.closingBody'],
   ['🎓', 'news.learn', 'news.learnBody'],
 ];
 
@@ -177,8 +177,8 @@ export function WhatsNew() {
           <motion.div key={title} className="news-item" initial={{ opacity: 0, y: 14, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ ...SPRING.liquid, delay: 0.08 + i * 0.06 }}>
             <span className="icon">{icon}</span>
             <div>
-              <b>{t(title as 'news.glass')}</b>
-              <span>{t(body as 'news.glassBody')}</span>
+              <b>{t(title as 'news.orbit')}</b>
+              <span>{t(body as 'news.orbitBody')}</span>
             </div>
           </motion.div>
         ))}

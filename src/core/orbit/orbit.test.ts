@@ -67,6 +67,16 @@ describe('Orbit entiende lo que le pides', () => {
     expect(p('- llamar al banco\n- pagar el gimnasio').type).toBe('dump');
   });
 
+  it('también en inglés', () => {
+    expect(p('Plan my day, nothing after 8pm and focus on marketing')).toMatchObject({ type: 'plan', date: TODAY, constraints: { end: '20:00', focus: ['marketing'] } });
+    expect(p("I'm overwhelmed").type).toBe('lighten');
+    expect(p('What should I do now?').type).toBe('whatNow');
+    expect(p('Recap my week').type).toBe('week');
+    expect(p('break down the move by November 30')).toMatchObject({ type: 'breakdown', deadline: '2026-11-30' });
+    expect(p('I need to call the bank, buy bread tomorrow and send the report').type).toBe('dump');
+    expect(splitActions('I need to call the bank, buy bread tomorrow and send the report')).toEqual(['call the bank', 'buy bread tomorrow', 'send the report']);
+  });
+
   it('lo demás lo resuelve la paleta de comandos', () => {
     expect(p('empieza focus 50 min')).toMatchObject({ type: 'command', intent: { type: 'focusStart', minutes: 50 } });
     expect(p('¿cómo va mi racha de meditar?')).toMatchObject({ type: 'command', intent: { type: 'streak' } });

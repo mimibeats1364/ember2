@@ -58,6 +58,14 @@ for (const m of MODULES) {
       for (const c of l.commands) out.push(`| \`${c.text}\` | ${c.result} |`);
       out.push('');
     }
+    if (l.orbit?.length) {
+      out.push('**Pídeselo a Orbit (`⌘J`):**');
+      out.push('');
+      out.push('| Escribe | Qué hace |');
+      out.push('|---|---|');
+      for (const c of l.orbit) out.push(`| \`${c.text}\` | ${c.result} |`);
+      out.push('');
+    }
     if (l.links?.length) {
       out.push('**Enlaces (Atajos de Apple, Raycast, Alfred):**');
       out.push('');

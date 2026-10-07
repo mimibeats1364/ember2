@@ -20,6 +20,7 @@ Dentro de Ember tienes este mismo tutorial, interactivo, en **Aprende** (barra l
 - 🗓️ **Planificar**
   - [Tareas a fondo](#tasks)
   - [Planifica tu día en 10 segundos](#planDay)
+  - [Orbit, tu asistente](#orbit)
   - [Calendario y bloques de tiempo](#calendar)
 - 🎯 **Enfocarte**
   - [Focus: pomodoro y trabajo profundo](#focus)
@@ -37,6 +38,9 @@ Dentro de Ember tienes este mismo tutorial, interactivo, en **Aprende** (barra l
 - ⌨️ **Comandos y atajos**
   - [Habla con Ember](#commands)
   - [Atajos de teclado](#shortcuts)
+- 📱 **Tus dispositivos**
+  - [Sincroniza tus dispositivos](#sync)
+  - [Ember en el móvil](#install)
 - 💻 **Ember en tu Mac**
   - [Ember en tu Mac](#mac)
   - [Vidrio líquido y animaciones](#glass)
@@ -196,6 +200,36 @@ Dentro de Ember tienes este mismo tutorial, interactivo, en **Aprende** (barra l
 | `cuánto tiempo libre tengo hoy` | Tus huecos libres y cuánto suman |
 
 ➜ En la app: **Ir a Hoy**.
+
+<a id="orbit"></a>
+
+### 🪐 Orbit, tu asistente
+
+*Pídele las cosas con tus palabras: planifica con condiciones, aligera el día, desglosa proyectos y más.* · 3 min
+
+1. **Ábrelo.** Pulsa <kbd>⌘J</kbd>, el botón **Orbit** de la barra lateral o el aviso de **Hoy**. Funciona en tu dispositivo, sin conexión y sin modelos en la nube.
+2. **Planifica con condiciones.** Escribe "planifica mi día, nada después de las 20 y prioriza marketing". Entiende **empieza a las…**, **hasta las…**, **solo tengo 3 horas**, **primero lo difícil**, **con descansos de 10 min** y **día tranquilo**.
+3. **Aligera un día imposible.** Di "estoy saturado": compara tu carga con el tiempo libre real y propone mover lo menos urgente a días con hueco. Nunca toca lo prioritario ni lo que vence ese día.
+4. **Vacía la cabeza.** Escribe varias cosas seguidas ("tengo que llamar al banco, comprar pan mañana y enviar el informe antes del viernes") o una lista con <kbd>⇧↵</kbd>: crea una tarea por cada una, con su fecha y duración.
+5. **Tú decides.** Cada propuesta llega con casillas: quita lo que no quieras y pulsa **Aplicar**. Todo se aplica junto y <kbd>⌘Z</kbd> lo deshace entero.
+
+**Pídeselo a Orbit (`⌘J`):**
+
+| Escribe | Qué hace |
+|---|---|
+| `planifica mi día, nada después de las 20 y prioriza marketing` | Propone horas respetando tus condiciones |
+| `organiza mañana empezando a las 9, solo tengo 3 horas` | Plan de mañana con tope de 3 h |
+| `estoy saturado` | Mueve lo menos urgente a días con hueco |
+| `desglosa la mudanza para el 30 de noviembre` | Proyecto con fases y fechas hasta el límite |
+| `convierte la nota Reunión en tareas` | Saca las tareas de una nota |
+| `tengo que llamar al banco, comprar pan mañana y enviar el informe antes del viernes` | Tres tareas, cada una con lo suyo |
+| `¿qué hago ahora?` | Lo más urgente que cabe en tu hueco actual |
+| `¿cómo voy con el EP?` | Progreso, ritmo y lo siguiente |
+| `resume mi semana` | Resumen con datos y hasta tres ideas |
+
+**Atajos:**
+
+- <kbd>⌘J</kbd> — Abrir o cerrar Orbit
 
 <a id="calendar"></a>
 
@@ -450,6 +484,35 @@ Dentro de Ember tienes este mismo tutorial, interactivo, en **Aprende** (barra l
 - <kbd>?</kbd> — Chuleta de atajos
 
 ➜ En la app: **Ajustes → Atajos**.
+
+## 📱 Tus dispositivos
+
+<a id="sync"></a>
+
+### 🔐 Sincroniza tus dispositivos
+
+*Mac, móvil y tablet con los mismos datos, cifrados de extremo a extremo y sin cuentas.* · 3 min
+
+1. **Un código, no una cuenta.** En **Ajustes → Sincronización** elige **Empezar en este dispositivo**. Ember genera un código de 20 caracteres: es la única llave de tus datos. Guárdalo en tu gestor de contraseñas.
+2. **Tu servidor.** Escribe la dirección de tu servidor de sincronización (la carpeta **server/** del proyecto tiene uno de un solo archivo y una guía para desplegarlo con HTTPS). El servidor **no puede leer nada**: solo guarda registros cifrados.
+3. **Une los demás.** En el otro dispositivo elige **Unirme con un código**, escribe el mismo servidor y el código. Recibe todo y adopta tus ajustes (nombre, tema…).
+4. **Se sincroniza solo.** Al abrir Ember, cada minuto y medio, al volver a la ventana y unos segundos después de cada cambio. Sin conexión sigues trabajando; se pone al día al reconectar.
+5. **Si dos cambian lo mismo.** Gana el cambio más reciente y el otro queda en **Conflictos por revisar**, donde puedes recuperarlo con **Conservar la descartada**. Nunca se pierde nada en silencio.
+
+➜ En la app: **Ajustes → Sincronización**.
+
+<a id="install"></a>
+
+### 📲 Ember en el móvil
+
+*La versión web se instala como una app: icono propio, pantalla completa y sin conexión.* · 1 min
+
+1. **iPhone y iPad.** Abre Ember en Safari, pulsa **Compartir** y luego **Añadir a pantalla de inicio**.
+2. **Android y ordenador.** En Chrome o Edge aparece **Instalar app** en el menú (o en **Ajustes → Acerca de → Instalar**).
+3. **Accesos rápidos.** Mantén pulsado el icono para **Nueva tarea**, **Empezar focus** o **Hablar con Orbit**.
+4. **Junto con la sincronización.** Únelo con tu código y tendrás en el bolsillo lo mismo que en el Mac. Los datos viven en el dispositivo y funcionan sin conexión.
+
+➜ En la app: **Ajustes → Acerca de**.
 
 ## 💻 Ember en tu Mac
 

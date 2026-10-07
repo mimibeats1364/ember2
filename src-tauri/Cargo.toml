@@ -1,6 +1,6 @@
 [package]
 name = "ember"
-version = "0.2.0"
+version = "0.3.0"
 description = "Ember — tu sistema operativo personal"
 authors = ["Jymmy"]
 edition = "2021"

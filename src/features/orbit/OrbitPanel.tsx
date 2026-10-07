@@ -160,7 +160,7 @@ function OrbitModal() {
               {t('orbit.clear')}
             </button>
           )}
-          <span>{MOD}J</span>
+          <span className="orbit-kbd">{MOD}J</span>
         </span>
       </div>
     </Modal>

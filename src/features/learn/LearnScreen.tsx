@@ -16,6 +16,7 @@ import { cx, Kbd } from '@/ui/components/primitives';
 import { LiquidOrb } from '@/ui/components/LiquidOrb';
 import { SPRING } from '@/ui/motion/springs';
 import { navigate, openCapture, openPalette, startTour, useUi } from '@/app/ui';
+import { openOrbit } from '@/features/orbit/store';
 import { previewCommand } from '@/app/commandRunner';
 import { useProjectNames } from '@/app/QuickCapture';
 import { LESSONS, MODULES, lessonById, type Lesson, type LessonShortcut } from './lessons';
@@ -173,6 +174,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
 
       {lesson.capture && lesson.capture.length > 0 && <CaptureSandbox lesson={lesson} />}
       {lesson.commands && lesson.commands.length > 0 && <CommandSandbox lesson={lesson} />}
+      {lesson.orbit && lesson.orbit.length > 0 && <OrbitExamples lesson={lesson} />}
       {lesson.links && lesson.links.length > 0 && <LinksTable lesson={lesson} />}
       {lesson.shortcuts && lesson.shortcuts.length > 0 && <ShortcutTable shortcuts={lesson.shortcuts} />}
 
@@ -343,6 +345,29 @@ function CommandSandbox({ lesson }: { lesson: Lesson }) {
           <CommandIcon /> {t('learn.openInPalette')} <Kbd>⌘K</Kbd>
         </button>
         <span className="faint xs">{t('learn.runHint')}</span>
+      </div>
+    </section>
+  );
+}
+
+// ── Pídeselo a Orbit ───────────────────────────────────────────────────────────────────
+
+function OrbitExamples({ lesson }: { lesson: Lesson }) {
+  return (
+    <section className="card card-pad sandbox">
+      <div className="sandbox-head">
+        <span className="sandbox-badge">
+          <Sparkles size={14} /> {t('learn.tryOrbit')}
+        </span>
+        <span className="faint xs">{t('learn.orbitHint')}</span>
+      </div>
+      <div className="sandbox-examples">
+        {lesson.orbit!.map((ex) => (
+          <button key={ex.text} className="example" onClick={() => openOrbit(ex.text)}>
+            <span className="example-text">“{ex.text}”</span>
+            <span className="example-result">{ex.result}</span>
+          </button>
+        ))}
       </div>
     </section>
   );

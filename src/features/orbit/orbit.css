@@ -109,7 +109,7 @@
   .modal.orbit { max-height: 92vh; }
   .orbit-thread { padding: 6px 14px 10px; }
   .orbit-line .num { min-width: 78px; }
-  .orbit-foot > span:first-child { display: none; }
+  .orbit-foot > span:first-child, .orbit-kbd { display: none; }
   .today-orbit { font-size: var(--fs-xs); padding: 7px 12px 7px 8px; }
   .today-orbit .orbit-dot { flex: none; }
 }

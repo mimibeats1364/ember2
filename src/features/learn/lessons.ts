@@ -9,8 +9,9 @@
  */
 import type { InputKind } from '../../core/nlp';
 import type { CommandType } from '../../core/commands';
+import type { OrbitIntent } from '../../core/orbit/intent';
 
-export type ModuleId = 'start' | 'capture' | 'plan' | 'focus' | 'habits' | 'organize' | 'reflect' | 'power' | 'mac';
+export type ModuleId = 'start' | 'capture' | 'plan' | 'focus' | 'habits' | 'organize' | 'reflect' | 'power' | 'devices' | 'mac';
 
 export const MODULES: { id: ModuleId; title: string; icon: string }[] = [
   { id: 'start', title: 'Primeros pasos', icon: '🧭' },
@@ -21,6 +22,7 @@ export const MODULES: { id: ModuleId; title: string; icon: string }[] = [
   { id: 'organize', title: 'Organizar', icon: '🗂️' },
   { id: 'reflect', title: 'Reflexionar', icon: '🌙' },
   { id: 'power', title: 'Comandos y atajos', icon: '⌨️' },
+  { id: 'devices', title: 'Tus dispositivos', icon: '📱' },
   { id: 'mac', title: 'Ember en tu Mac', icon: '💻' },
 ];
 
@@ -58,6 +60,13 @@ export interface CommandExample {
   result: string;
 }
 
+export interface OrbitExample {
+  text: string;
+  /** Qué entiende Orbit (lo comprueban los tests con el intérprete real). */
+  type: OrbitIntent['type'];
+  result: string;
+}
+
 export interface LinkExample {
   url: string;
   type: 'capture' | 'open' | 'command' | 'focusStart' | 'focus';
@@ -83,6 +92,7 @@ export interface Lesson {
   capture?: CaptureExample[];
   commands?: CommandExample[];
   links?: LinkExample[];
+  orbit?: OrbitExample[];
   goTo?: { screen: LessonScreen; tab?: string; label: string };
   tour?: string;
 }
@@ -241,6 +251,33 @@ export const LESSONS: Lesson[] = [
     ],
     goTo: { screen: 'today', label: 'Ir a Hoy' },
     tour: 'today',
+  },
+  {
+    id: 'orbit',
+    module: 'plan',
+    icon: '🪐',
+    title: 'Orbit, tu asistente',
+    summary: 'Pídele las cosas con tus palabras: planifica con condiciones, aligera el día, desglosa proyectos y más.',
+    minutes: 3,
+    steps: [
+      { title: 'Ábrelo', body: 'Pulsa `⌘J`, el botón **Orbit** de la barra lateral o el aviso de **Hoy**. Funciona en tu dispositivo, sin conexión y sin modelos en la nube.' },
+      { title: 'Planifica con condiciones', body: 'Escribe "planifica mi día, nada después de las 20 y prioriza marketing". Entiende **empieza a las…**, **hasta las…**, **solo tengo 3 horas**, **primero lo difícil**, **con descansos de 10 min** y **día tranquilo**.' },
+      { title: 'Aligera un día imposible', body: 'Di "estoy saturado": compara tu carga con el tiempo libre real y propone mover lo menos urgente a días con hueco. Nunca toca lo prioritario ni lo que vence ese día.' },
+      { title: 'Vacía la cabeza', body: 'Escribe varias cosas seguidas ("tengo que llamar al banco, comprar pan mañana y enviar el informe antes del viernes") o una lista con `⇧↵`: crea una tarea por cada una, con su fecha y duración.' },
+      { title: 'Tú decides', body: 'Cada propuesta llega con casillas: quita lo que no quieras y pulsa **Aplicar**. Todo se aplica junto y `⌘Z` lo deshace entero.' },
+    ],
+    orbit: [
+      { text: 'planifica mi día, nada después de las 20 y prioriza marketing', type: 'plan', result: 'Propone horas respetando tus condiciones' },
+      { text: 'organiza mañana empezando a las 9, solo tengo 3 horas', type: 'plan', result: 'Plan de mañana con tope de 3 h' },
+      { text: 'estoy saturado', type: 'lighten', result: 'Mueve lo menos urgente a días con hueco' },
+      { text: 'desglosa la mudanza para el 30 de noviembre', type: 'breakdown', result: 'Proyecto con fases y fechas hasta el límite' },
+      { text: 'convierte la nota Reunión en tareas', type: 'noteTasks', result: 'Saca las tareas de una nota' },
+      { text: 'tengo que llamar al banco, comprar pan mañana y enviar el informe antes del viernes', type: 'dump', result: 'Tres tareas, cada una con lo suyo' },
+      { text: '¿qué hago ahora?', type: 'whatNow', result: 'Lo más urgente que cabe en tu hueco actual' },
+      { text: '¿cómo voy con el EP?', type: 'status', result: 'Progreso, ritmo y lo siguiente' },
+      { text: 'resume mi semana', type: 'week', result: 'Resumen con datos y hasta tres ideas' },
+    ],
+    shortcuts: [{ keys: '⌘J', label: 'Abrir o cerrar Orbit' }],
   },
   {
     id: 'calendar',
@@ -489,6 +526,39 @@ export const LESSONS: Lesson[] = [
       { keys: '?', label: 'Chuleta de atajos' },
     ],
     goTo: { screen: 'settings', tab: 'shortcuts', label: 'Ajustes → Atajos' },
+  },
+
+  // ── Tus dispositivos ─────────────────────────────────────────────────────────────────
+  {
+    id: 'sync',
+    module: 'devices',
+    icon: '🔐',
+    title: 'Sincroniza tus dispositivos',
+    summary: 'Mac, móvil y tablet con los mismos datos, cifrados de extremo a extremo y sin cuentas.',
+    minutes: 3,
+    steps: [
+      { title: 'Un código, no una cuenta', body: 'En **Ajustes → Sincronización** elige **Empezar en este dispositivo**. Ember genera un código de 20 caracteres: es la única llave de tus datos. Guárdalo en tu gestor de contraseñas.' },
+      { title: 'Tu servidor', body: 'Escribe la dirección de tu servidor de sincronización (la carpeta **server/** del proyecto tiene uno de un solo archivo y una guía para desplegarlo con HTTPS). El servidor **no puede leer nada**: solo guarda registros cifrados.' },
+      { title: 'Une los demás', body: 'En el otro dispositivo elige **Unirme con un código**, escribe el mismo servidor y el código. Recibe todo y adopta tus ajustes (nombre, tema…).' },
+      { title: 'Se sincroniza solo', body: 'Al abrir Ember, cada minuto y medio, al volver a la ventana y unos segundos después de cada cambio. Sin conexión sigues trabajando; se pone al día al reconectar.' },
+      { title: 'Si dos cambian lo mismo', body: 'Gana el cambio más reciente y el otro queda en **Conflictos por revisar**, donde puedes recuperarlo con **Conservar la descartada**. Nunca se pierde nada en silencio.' },
+    ],
+    goTo: { screen: 'settings', tab: 'sync', label: 'Ajustes → Sincronización' },
+  },
+  {
+    id: 'install',
+    module: 'devices',
+    icon: '📲',
+    title: 'Ember en el móvil',
+    summary: 'La versión web se instala como una app: icono propio, pantalla completa y sin conexión.',
+    minutes: 1,
+    steps: [
+      { title: 'iPhone y iPad', body: 'Abre Ember en Safari, pulsa **Compartir** y luego **Añadir a pantalla de inicio**.' },
+      { title: 'Android y ordenador', body: 'En Chrome o Edge aparece **Instalar app** en el menú (o en **Ajustes → Acerca de → Instalar**).' },
+      { title: 'Accesos rápidos', body: 'Mantén pulsado el icono para **Nueva tarea**, **Empezar focus** o **Hablar con Orbit**.' },
+      { title: 'Junto con la sincronización', body: 'Únelo con tu código y tendrás en el bolsillo lo mismo que en el Mac. Los datos viven en el dispositivo y funcionan sin conexión.' },
+    ],
+    goTo: { screen: 'settings', tab: 'about', label: 'Ajustes → Acerca de' },
   },
 
   // ── Ember en tu Mac ──────────────────────────────────────────────────────────────────

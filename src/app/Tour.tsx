@@ -38,6 +38,7 @@ export const TOURS: Record<string, TourDef> = {
       { target: 'nav-habits', title: 'Hábitos', body: 'Rachas que no castigan: días de gracia, saltar a propósito y modo vacaciones.' },
       { target: 'nav-routines', title: 'Rutinas', body: 'Secuencias guiadas paso a paso, con temporizador y gestos. Empieza con una plantilla.' },
       { target: 'nav-focus', title: 'Focus', body: 'Pomodoro o trabajo profundo con un orbe líquido. `Espacio` pausa y `D` aparca distracciones.' },
+      { target: 'orbit', title: 'Orbit, tu asistente', body: '`⌘J` y pídeselo con tus palabras: **"planifica mi día, nada después de las 20"**, **"estoy saturado"** o **"resume mi semana"**. Propone; tú aplicas.' },
       { target: 'learn', title: 'Aprende', body: 'Aquí tienes el tutorial completo, con ejemplos que puedes probar. Pulsa `?` cuando quieras ver todos los atajos.' },
     ],
   },
