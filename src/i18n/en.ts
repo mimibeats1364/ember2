@@ -467,6 +467,11 @@ export const en: Dictionary = {
     deleteAllTyped: 'Type DELETE to confirm', deleted: 'All data deleted', syncStatus: 'Status', syncLocal: 'Only on this device',
     syncBody: 'Ember works fully offline. Sync is optional and end-to-end encrypted.',
     conflicts: 'Conflicts to review', noConflicts: 'No conflicts.',
+    install: {
+      title: 'Install Ember on this device', installed: 'Installed', button: 'Install',
+      body: 'Use it like an app: its own icon, full screen and offline. With sync on, you have the same on your phone and your Mac.',
+      ios: 'On iPhone or iPad: Safari Share button → “Add to Home Screen”.', other: 'Look for “Install app” or “Add to Home Screen” in your browser menu.',
+    },
     accountBody: "You don't need an account to use Ember. Sync doesn't need one either: it works with a code only your devices know (Settings → Sync).", version: 'Version {version}',
     storage: 'Storage: {kind}', storageKinds: { sqlite: 'Local SQLite', indexeddb: 'Browser (IndexedDB)', memory: 'Memory (not saved)' },
     docs: 'Data formats documented in docs/FORMATOS.md',

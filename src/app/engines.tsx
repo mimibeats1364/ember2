@@ -18,6 +18,7 @@ import { isTauri } from '@/platform/env';
 import { navigate, openCapture, openPalette, openTask, toast, useUi, type Screen } from './ui';
 import { closeOrbit, openOrbit, useOrbit } from '@/features/orbit/store';
 import { isApplyingRemote, loadSyncConfig, syncNow, useSync } from '@/data/sync';
+import { takeLaunchAction } from '@/platform/pwa';
 import { tickFocus, togglePauseFocus, useFocus, startFocusSession } from './focusStore';
 import { performCapture } from './QuickCapture';
 import { runIslandCommand, type IslandCommand } from './LiveIsland';
@@ -127,6 +128,18 @@ export function DeepLinkBridge() {
     void listenDeepLinks().then((u) => (un = u));
     return () => un?.();
   }, [ready]);
+  return null;
+}
+
+/** Accesos directos del icono de la versión web instalada (Nueva tarea, Focus, Orbit). */
+export function WebLaunch() {
+  useEffect(() => {
+    const action = takeLaunchAction();
+    if (!action) return;
+    if ('capture' in action) openCapture(action.capture);
+    else if ('orbit' in action) openOrbit();
+    else if (['today', 'inbox', 'tasks', 'calendar', 'habits', 'routines', 'focus', 'goals', 'projects', 'notes', 'insights', 'review', 'learn', 'settings'].includes(action.screen)) navigate(action.screen as Screen);
+  }, []);
   return null;
 }
 

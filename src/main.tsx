@@ -12,6 +12,7 @@ import './ui/styles/glass.css';
 import { App } from './app/App';
 import { windowLabel } from './platform/native';
 import { setLocale } from './i18n';
+import { setupPwa } from './platform/pwa';
 
 // Aplica tema e idioma guardados antes del primer render (sin destellos).
 try {
@@ -23,6 +24,8 @@ try {
 } catch {
   setLocale('es');
 }
+
+setupPwa();
 
 const root = createRoot(document.getElementById('root')!);
 root.render(

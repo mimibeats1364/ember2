@@ -1,0 +1,25 @@
+{
+  "name": "Ember · Tu sistema operativo personal",
+  "short_name": "Ember",
+  "description": "Tareas, calendario, hábitos, objetivos, focus y notas en un solo lugar. Funciona sin conexión.",
+  "lang": "es",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "categories": ["productivity", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nueva tarea", "short_name": "Tarea", "url": "/?capture=task", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Empezar focus", "short_name": "Focus", "url": "/?screen=focus", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Hablar con Orbit", "short_name": "Orbit", "url": "/?orbit=1", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

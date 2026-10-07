@@ -24,7 +24,7 @@ import { isOverdue, isOpen } from '@core/tasks';
 import { t, type TKey } from '@/i18n';
 import { cx, Kbd, Bar } from '@/ui/components/primitives';
 import { colorValue } from '@/ui/theme/palette';
-import { MOD } from '@/platform/env';
+import { isMac, isTauri, MOD } from '@/platform/env';
 import { useFocus } from './focusStore';
 import { formatClock, remainingMs } from '@core/focus';
 import { levelFor, totalXp } from '@core/gamification';
@@ -143,7 +143,9 @@ function SideStatus({ storageError }: { storageError: string }) {
     storageError !== 'none'
       ? t('errors.storage').split('.')[0]
       : !sync.configured
-        ? t('nav.localOnly')
+        ? isTauri() && isMac
+          ? t('nav.localOnly')
+          : t('sync.statusLocal')
         : sync.status === 'syncing'
           ? t('sync.statusSyncing')
           : offline

@@ -101,7 +101,7 @@
   box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.55);
 }
 .nav-item.orbit-item .kbd { margin-left: auto; }
-.today-orbit { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 7px 14px 7px 9px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--surface-hover); color: var(--text-2); font-size: var(--fs-sm); transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast); }
+.today-orbit { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; text-align: left; margin-top: 12px; padding: 7px 14px 7px 9px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--surface-hover); color: var(--text-2); font-size: var(--fs-sm); transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast); }
 .today-orbit:hover { border-color: rgba(var(--accent-rgb), 0.4); color: var(--text); background: var(--accent-soft); }
 .today-orbit .orbit-dot { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #fff 0%, #ffd2b0 16%, var(--accent) 54%, var(--accent-2) 82%, #2a0604 100%); box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.55); }
 
@@ -110,4 +110,6 @@
   .orbit-thread { padding: 6px 14px 10px; }
   .orbit-line .num { min-width: 78px; }
   .orbit-foot > span:first-child { display: none; }
+  .today-orbit { font-size: var(--fs-xs); padding: 7px 12px 7px 8px; }
+  .today-orbit .orbit-dot { flex: none; }
 }

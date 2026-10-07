@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Bell, Bot, Cloud, Copy, Database, Download, Info, Keyboard, Lock, Palette, Plug, RotateCcw, Sun, Timer, Trash, Upload, User, Flame, Clock, Plus } from 'lucide-react';
+import { Bell, Bot, Cloud, Copy, Database, Smartphone, Download, Info, Keyboard, Lock, Palette, Plug, RotateCcw, Sun, Timer, Trash, Upload, User, Flame, Clock, Plus } from 'lucide-react';
 import type { Conflict, Preferences, ThemeId, Weekday } from '@core/types';
 import { instantOf, startOfWeek, today as todayFn } from '@core/dates';
 import { getAdapter, updatePrefs, usePrefs, useData, useList, wipeAll } from '@/data/store';
@@ -13,6 +13,7 @@ import { THEMES } from '@/ui/theme/palette';
 import { AMBIENT_KINDS } from '@/platform/sound';
 import { ensureNotificationPermission, notificationPermission, notify, supportsWindowGlass, type NotifyPermission } from '@/platform/native';
 import { APP_VERSION, isTauri } from '@/platform/env';
+import { isIosSafari, promptInstall, usePwa } from '@/platform/pwa';
 import { askConfirm, openEventEditor, toast, useUi } from '@/app/ui';
 import { ThemeCard } from '@/features/onboarding/Onboarding';
 import { openOrbit } from '@/features/orbit/store';
@@ -531,10 +532,29 @@ function AboutSection() {
   const counts = useData((s) => s.c);
   const total = useMemo(() => Object.values(counts).reduce((a, r) => a + Object.keys(r).length, 0), [counts]);
   return (
+    <div className="stack gap-4">
+      <div className="card card-pad stack gap-3">
+        <div className="row-flex gap-3"><span className="brand-orb" /><b className="brand-name">Ember</b><span className="faint small">{t('settings.version', { version: APP_VERSION })}</span></div>
+        <p className="muted small">{t('app.tagline')}</p>
+        <div className="faint xs">{t('settings.storage', { kind: t(`settings.storageKinds.${kind}` as TKey) })} · {total}</div>
+      </div>
+      {!isTauri() && <InstallCard />}
+    </div>
+  );
+}
+
+/** Versión web: instalarla como app (icono, pantalla completa y uso sin conexión). */
+function InstallCard() {
+  const { canPrompt, installed } = usePwa();
+  return (
     <div className="card card-pad stack gap-3">
-      <div className="row-flex gap-3"><span className="brand-orb" /><b className="brand-name">Ember</b><span className="faint small">{t('settings.version', { version: APP_VERSION })}</span></div>
-      <p className="muted small">{t('app.tagline')}</p>
-      <div className="faint xs">{t('settings.storage', { kind: t(`settings.storageKinds.${kind}` as TKey) })} · {total}</div>
+      <div className="row-flex gap-3"><Smartphone size={18} style={{ color: 'var(--accent)' }} /><b>{t('settings.install.title')}</b>{installed && <span className="tag success">{t('settings.install.installed')}</span>}</div>
+      <p className="muted small">{t('settings.install.body')}</p>
+      {!installed && (canPrompt ? (
+        <div><button className="btn btn-primary btn-sm" onClick={() => void promptInstall()}><Download />{t('settings.install.button')}</button></div>
+      ) : (
+        <p className="faint xs">{isIosSafari() ? t('settings.install.ios') : t('settings.install.other')}</p>
+      ))}
     </div>
   );
 }
