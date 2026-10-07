@@ -42,6 +42,10 @@
 .side-status { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 11px; color: var(--text-3); }
 .side-status .dot { width: 6px; height: 6px; color: var(--success); box-shadow: 0 0 8px currentColor; }
 .side-status.error .dot { color: var(--warning); }
+.side-status.offline .dot { color: var(--text-3); box-shadow: none; }
+.side-status.syncing .dot { color: var(--info); animation: pulse 1.2s ease-in-out infinite; }
+button.side-status { width: 100%; text-align: left; border-radius: 8px; }
+button.side-status:hover { color: var(--text-2); background: var(--surface-hover); }
 .focus-pill {
   display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid rgba(var(--accent-rgb), 0.35);
   background: var(--accent-soft); color: var(--text); font-size: var(--fs-xs); font-weight: 600; text-align: left;

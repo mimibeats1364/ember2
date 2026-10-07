@@ -134,7 +134,7 @@ export async function flush(): Promise<void> {
   }
 }
 
-function commit(changes: Change[]) {
+function setEntities(changes: Change[]) {
   if (changes.length === 0) return;
   useData.setState((s) => {
     const c = { ...s.c };
@@ -148,8 +148,44 @@ function commit(changes: Change[]) {
     }
     return { c };
   });
+}
+
+function commit(changes: Change[]) {
+  if (changes.length === 0) return;
+  setEntities(changes);
   for (const ch of changes) queue.set(`${ch.type}:${ch.entity.id}`, { type: ch.type, entity: ch.entity });
   scheduleFlush();
+}
+
+// ── Sincronización ─────────────────────────────────────────────────────────────────────
+
+export function receiveClock(hlc: string): void {
+  clock.receive(hlc);
+}
+
+export function nextClock(): string {
+  return clock.now();
+}
+
+/**
+ * Aplica entidades que llegan de otro dispositivo: no vuelven a la cola de subida ni entran en
+ * ⌘Z. Si hay un cambio local aún sin guardar más reciente para la misma entidad, gana el local.
+ * Con `localOnly`, escribe sin marcar para subir (p. ej. conflictos, que son de este equipo).
+ */
+export async function applyRemoteEntities(items: StoredRecord[], opts: { localOnly?: boolean } = {}): Promise<number> {
+  const accepted: StoredRecord[] = [];
+  for (const it of items) {
+    clock.receive(it.entity.updatedAt);
+    const key = `${it.type}:${it.entity.id}`;
+    const queued = queue.get(key);
+    if (!opts.localOnly && queued && queued.entity.updatedAt >= it.entity.updatedAt) continue;
+    if (!opts.localOnly) queue.delete(key);
+    accepted.push(it);
+  }
+  if (accepted.length === 0) return 0;
+  setEntities(accepted);
+  await adapter.write(accepted, false);
+  return accepted.length;
 }
 
 // ── Deshacer ───────────────────────────────────────────────────────────────────────────

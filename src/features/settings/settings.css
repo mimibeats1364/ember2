@@ -9,3 +9,10 @@
   .settings-nav .nav-item { flex: none; width: auto; padding: 0 12px; }
   .settings-nav .nav-item span { display: inline !important; }
 }
+
+/* ── Sincronización ───────────────────────────────────────────────────────── */
+.sync-code { font-family: var(--font-mono); font-size: var(--fs-sm); letter-spacing: 0.06em; padding: 6px 10px; border-radius: 8px; background: var(--surface-3); border: 1px solid var(--line-strong); user-select: all; }
+.input.mono { font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.sync-conflict { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.sync-versions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sync-versions > div { min-width: 0; padding: 8px 10px; border-radius: 9px; background: var(--surface-hover); }

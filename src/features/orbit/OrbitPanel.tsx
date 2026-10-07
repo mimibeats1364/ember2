@@ -345,7 +345,7 @@ function PlanCard({ msg, answer }: { msg: OrbitMessage; answer: Extract<OrbitAns
       </div>
       {chips.length > 0 && (
         <div className="orbit-chips tight">
-          {chips.map((x) => <span key={x} className="badge">{x}</span>)}
+          {chips.map((x) => <span key={x} className="tag">{x}</span>)}
         </div>
       )}
       {p.changes.length === 0 ? (
@@ -534,7 +534,7 @@ function WeekCard({ answer }: { answer: Extract<OrbitAnswer, { kind: 'week' }> }
       <div className="orbit-card-head">
         <Sparkles />
         <b>{t('orbit.week.title', { from: formatDate(answer.from, 'dayMonth'), to: formatDate(answer.to, 'dayMonth') })}</b>
-        <span className={cx('badge', `trend-${answer.trend}`)}>{t(`orbit.week.trend.${answer.trend}` as TKey)}</span>
+        <span className={cx('tag', `trend-${answer.trend}`)}>{t(`orbit.week.trend.${answer.trend}` as TKey)}</span>
       </div>
       <p className="orbit-prose">{answer.notes.map((n) => weekNoteText(n, projects)).join(' ')}</p>
       {answer.tips.length > 0 && (

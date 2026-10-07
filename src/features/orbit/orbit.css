@@ -34,7 +34,7 @@
 .orbit-card-head { display: flex; align-items: center; gap: 8px; }
 .orbit-card-head > svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
 .orbit-card-head b { font-family: var(--font-display); font-weight: 750; letter-spacing: -0.01em; }
-.orbit-card-head .badge, .orbit-card-head .num { margin-left: auto; }
+.orbit-card-head .tag, .orbit-card-head .num { margin-left: auto; }
 .orbit-prose { color: var(--text); }
 
 .orbit-skills { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 7px; }
@@ -42,7 +42,7 @@
 .orbit-skills svg { width: 15px; height: 15px; color: var(--accent); margin-top: 2px; }
 
 .orbit-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.orbit-chips.tight .badge { font-size: var(--fs-micro); }
+.orbit-chips.tight .tag { font-size: var(--fs-micro); }
 .orbit-examples { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px; }
 .orbit-examples .chip, .orbit-chips .chip { height: auto; min-height: 30px; padding: 5px 11px; text-align: left; white-space: normal; line-height: 1.3; }
 
@@ -73,8 +73,8 @@
 .orbit-tips { list-style: none; margin: 4px 0 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; border-radius: 12px; background: var(--accent-soft); }
 .orbit-tips li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; }
 .orbit-tips svg { width: 14px; height: 14px; color: var(--accent); margin-top: 3px; }
-.badge.trend-up { color: var(--success); }
-.badge.trend-down, .badge.trend-quiet { color: var(--text-3); }
+.tag.trend-up { color: var(--success); background: rgba(70, 218, 104, 0.12); border-color: transparent; }
+.tag.trend-down, .tag.trend-quiet { color: var(--text-3); }
 
 .orbit-next, .orbit-preview { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .orbit-preview li { display: flex; align-items: center; gap: 8px; padding: 3px 0; min-width: 0; }

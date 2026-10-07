@@ -31,6 +31,7 @@ import { levelFor, totalXp } from '@core/gamification';
 import { LiquidTrack } from '@/ui/motion/LiquidTrack';
 import { LESSONS } from '@/features/learn/lessons';
 import { openOrbit } from '@/features/orbit/store';
+import { useSync } from '@/data/sync';
 
 export const NAV: { screen: Screen; icon: LucideIcon; key: TKey }[] = [
   { screen: 'today', icon: Sun, key: 'nav.today' },
@@ -127,12 +128,34 @@ export function Sidebar() {
           <Settings />
           <span>{t('nav.settings')}</span>
         </button>
-        <div className={cx('side-status', storageError !== 'none' && 'error')} title={t('nav.localOnly')}>
-          <i className="dot" />
-          <span>{storageError === 'none' ? t('nav.localOnly') : t('errors.storage').split('.')[0]}</span>
-        </div>
+        <SideStatus storageError={storageError} />
       </div>
     </aside>
+  );
+}
+
+/** Dónde están tus datos: solo aquí, sincronizados, sincronizando o con algún problema. */
+function SideStatus({ storageError }: { storageError: string }) {
+  const sync = useSync();
+  const offline = sync.status === 'error' && sync.error === 'network';
+  const problem = storageError !== 'none' || (sync.status === 'error' && !offline);
+  const label =
+    storageError !== 'none'
+      ? t('errors.storage').split('.')[0]
+      : !sync.configured
+        ? t('nav.localOnly')
+        : sync.status === 'syncing'
+          ? t('sync.statusSyncing')
+          : offline
+            ? t('sync.statusOffline')
+            : sync.status === 'error'
+              ? t('sync.statusError')
+              : t('sync.statusSynced');
+  return (
+    <button className={cx('side-status', problem && 'error', offline && 'offline', sync.status === 'syncing' && 'syncing')} title={sync.configured && sync.lastSyncAt ? t('sync.syncedAgo', { when: new Date(sync.lastSyncAt).toLocaleTimeString() }) : label} onClick={() => navigate('settings', { tab: sync.configured ? 'sync' : 'privacy' })}>
+      <i className="dot" />
+      <span>{label}</span>
+    </button>
   );
 }
 

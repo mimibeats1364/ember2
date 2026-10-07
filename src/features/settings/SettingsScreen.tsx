@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Bell, Bot, Cloud, Database, Download, Info, Keyboard, Lock, Palette, Plug, RotateCcw, Sun, Timer, Trash, Upload, User, Flame, Clock, Plus } from 'lucide-react';
-import type { Preferences, ThemeId, Weekday } from '@core/types';
+import { Bell, Bot, Cloud, Copy, Database, Download, Info, Keyboard, Lock, Palette, Plug, RotateCcw, Sun, Timer, Trash, Upload, User, Flame, Clock, Plus } from 'lucide-react';
+import type { Conflict, Preferences, ThemeId, Weekday } from '@core/types';
 import { instantOf, startOfWeek, today as todayFn } from '@core/dates';
 import { getAdapter, updatePrefs, usePrefs, useData, useList, wipeAll } from '@/data/store';
 import { setVacation } from '@/data/actions';
 import { DEFAULT_SHORTCUTS } from '@/data/defaults';
 import { hasDemo, loadDemoData, removeDemoData } from '@/data/seed';
-import { t, weekdayName, type TKey } from '@/i18n';
+import { formatDuration, t, weekdayName, type TKey } from '@/i18n';
+import { connectSync, disconnectSync, generateSyncCode, getSyncCode, keepCurrentVersion, keepDiscardedVersion, loadSyncConfig, reuploadAll, syncNow, useSync, type SyncErrorCode } from '@/data/sync';
 import { cx, Field, PendingBadge, Segmented, Switch, Kbd } from '@/ui/components/primitives';
 import { THEMES } from '@/ui/theme/palette';
 import { AMBIENT_KINDS } from '@/platform/sound';
@@ -14,6 +15,7 @@ import { ensureNotificationPermission, notificationPermission, notify, supportsW
 import { APP_VERSION, isTauri } from '@/platform/env';
 import { askConfirm, openEventEditor, toast, useUi } from '@/app/ui';
 import { ThemeCard } from '@/features/onboarding/Onboarding';
+import { openOrbit } from '@/features/orbit/store';
 import { SHORTCUT_KEYS } from '@/app/engines';
 import { describeRecurrence } from '@/ui/format';
 import { exportCsv, exportIcs, exportJson, exportMarkdown, importCsv, importIcsFile, importJson } from './dataIO';
@@ -138,9 +140,10 @@ export default function SettingsScreen() {
           {section === 'shortcuts' && <ShortcutsSection prefs={prefs} set={set} />}
           {section === 'ai' && (
             <div className="card card-pad stack gap-4">
-              <div className="row-flex gap-3"><Bot size={18} style={{ color: 'var(--accent)' }} /><b>{t('settings.aiTitle')}</b><PendingBadge /></div>
+              <div className="row-flex gap-3"><Bot size={18} style={{ color: 'var(--accent)' }} /><b>{t('settings.aiTitle')}</b><span className="tag success">{t('orbit.badge')}</span></div>
               <p className="muted small">{t('settings.aiBody')}</p>
               <p className="muted small">{t('settings.aiLocalNow')}</p>
+              <div><button className="btn btn-sm" onClick={() => openOrbit()}><Bot />{t('palette.commands.orbit', { name: prefs.assistantName || 'Orbit' })}</button></div>
               <Field label={t('settings.aiName')}><input className="input" style={{ maxWidth: 240 }} value={prefs.assistantName} onChange={(e) => set({ assistantName: e.target.value })} /></Field>
             </div>
           )}
@@ -156,7 +159,7 @@ export default function SettingsScreen() {
           {section === 'sync' && <SyncSection />}
           {section === 'account' && (
             <div className="card card-pad stack gap-3">
-              <div className="row-flex gap-3"><User size={18} /><b>{prefs.name || '—'}</b><PendingBadge /></div>
+              <div className="row-flex gap-3"><User size={18} /><b>{prefs.name || '—'}</b></div>
               <p className="muted small">{t('settings.accountBody')}</p>
             </div>
           )}
@@ -365,6 +368,8 @@ function DataSection() {
           typed: prefs.locale === 'en' ? 'DELETE' : 'BORRAR',
           run: async () => {
             await wipeAll();
+            // Borrar aquí no borra en tus otros dispositivos: este deja de sincronizar.
+            await loadSyncConfig();
             toast(t('settings.deleted'));
           },
         })}><Trash />{t('settings.deleteAll')}</button>
@@ -374,14 +379,151 @@ function DataSection() {
 }
 
 function SyncSection() {
-  const conflicts = useList('conflicts').filter((c) => !c.resolvedAt);
+  const sync = useSync();
+  const conflicts = useList('conflicts')
+    .filter((c) => !c.resolvedAt)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const [mode, setMode] = useState<'create' | 'join'>('create');
+  const [server, setServer] = useState(sync.server);
+  const [newCode, setNewCode] = useState(() => generateSyncCode());
+  const [joinCode, setJoinCode] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<SyncErrorCode | null>(null);
+  const [shownCode, setShownCode] = useState<string | null>(null);
+  const copy = (text: string) => {
+    void navigator.clipboard?.writeText(text).then(
+      () => toast(t('sync.copied')),
+      () => toast(text),
+    );
+  };
+  const connect = async () => {
+    setBusy(true);
+    setError(null);
+    const res = await connectSync(server, mode === 'create' ? newCode : joinCode, mode);
+    setBusy(false);
+    if (!res.ok) setError(res.error);
+    else toast(t('sync.connected'), { kind: 'success' });
+  };
   return (
-    <div className="card card-pad stack gap-3">
-      <div className="field-row"><span className="small">{t('settings.syncStatus')}</span><span className="row-flex gap-2 small"><i className="dot" style={{ color: 'var(--success)' }} />{t('settings.syncLocal')}</span></div>
-      <p className="muted small">{t('settings.syncBody')}</p>
-      <div className="field-row"><span className="small">{t('settings.conflicts')}</span><span className="faint xs">{conflicts.length ? conflicts.length : t('settings.noConflicts')}</span></div>
+    <div className="stack gap-4">
+      <div className="card card-pad stack gap-3">
+        <div className="row-flex gap-3">
+          <Cloud size={18} style={{ color: 'var(--accent)' }} />
+          <b>{t('sync.title')}</b>
+          <SyncBadge />
+        </div>
+        <p className="muted small">{t('sync.body')}</p>
+        {!sync.configured ? (
+          <>
+            <Segmented value={mode} onChange={(m) => { setMode(m); setError(null); }} options={[{ value: 'create', label: t('sync.create') }, { value: 'join', label: t('sync.join') }]} />
+            <Field label={t('sync.server')} hint={t('sync.serverHint')}>
+              <input className="input" value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://sync.tu-dominio.com" spellCheck={false} autoCapitalize="off" />
+            </Field>
+            {mode === 'create' ? (
+              <>
+                <Field label={t('sync.yourCode')} hint={t('sync.codeHint')}>
+                  <div className="row-flex gap-2 wrap">
+                    <code className="sync-code">{newCode}</code>
+                    <button className="btn btn-sm" onClick={() => copy(newCode)}><Copy />{t('sync.copy')}</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => { setNewCode(generateSyncCode()); setSaved(false); }}><RotateCcw />{t('sync.another')}</button>
+                  </div>
+                </Field>
+                <label className="row-flex gap-2 small">
+                  <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
+                  {t('sync.savedIt')}
+                </label>
+              </>
+            ) : (
+              <Field label={t('sync.code')}>
+                <input className="input mono" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" spellCheck={false} autoCapitalize="characters" />
+              </Field>
+            )}
+            {error && <div className="banner small">{t(`sync.errors.${error}` as TKey)}</div>}
+            <div>
+              <button className="btn btn-primary" disabled={busy || !server.trim() || (mode === 'create' ? !saved : !joinCode.trim())} onClick={() => void connect()}>
+                <Cloud />
+                {busy ? t('sync.connecting') : mode === 'create' ? t('sync.activate') : t('sync.joinButton')}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <Row label={t('sync.status')}><SyncStatusText /></Row>
+            <Row label={t('sync.server')}><span className="small ellipsis" style={{ maxWidth: 280 }}>{sync.server}</span></Row>
+            <Row label={t('sync.code')} hint={t('sync.codeShowHint')}>
+              {shownCode ? <code className="sync-code">{shownCode}</code> : <span className="faint">••••-••••-••••-••••-••••</span>}
+              <button className="btn btn-sm btn-ghost" onClick={async () => { if (shownCode) setShownCode(null); else setShownCode(await getSyncCode()); }}>{shownCode ? t('sync.hide') : t('sync.show')}</button>
+              <button className="btn btn-sm btn-ghost" onClick={async () => { const c = await getSyncCode(); if (c) copy(c); }}><Copy />{t('sync.copy')}</button>
+            </Row>
+            {sync.last && (sync.last.pulled > 0 || sync.last.pushed > 0) && (
+              <p className="faint xs">{t('sync.lastResult', { pulled: sync.last.pulled, pushed: sync.last.pushed })}</p>
+            )}
+            {sync.status === 'error' && sync.error && <div className="banner small">{t(`sync.errors.${sync.error}` as TKey)}</div>}
+            <div className="row-flex gap-2 wrap">
+              <button className="btn btn-primary btn-sm" disabled={sync.status === 'syncing'} onClick={() => void syncNow()}><RotateCcw />{t('sync.now')}</button>
+              {sync.error === 'no_space' && <button className="btn btn-sm" onClick={() => void reuploadAll()}><Upload />{t('sync.reupload')}</button>}
+              <button className="btn btn-sm btn-ghost" onClick={() => askConfirm({ title: t('sync.disconnectTitle'), body: t('sync.disconnectBody'), confirmLabel: t('sync.disconnect'), run: () => void disconnectSync() })}>{t('sync.disconnect')}</button>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="card card-pad stack gap-3">
+        <div className="field-row"><b className="small">{t('settings.conflicts')}</b><span className="faint xs">{conflicts.length ? conflicts.length : t('settings.noConflicts')}</span></div>
+        {conflicts.length > 0 && <p className="faint xs">{t('sync.conflictsHint')}</p>}
+        {conflicts.map((c) => <ConflictRow key={c.id} conflict={c} />)}
+      </div>
     </div>
   );
+}
+
+function entityLabel(e: unknown): string {
+  const x = e as { title?: string; name?: string; date?: string; id?: string } | null;
+  return x?.title || x?.name || x?.date || x?.id || '—';
+}
+
+function ConflictRow({ conflict }: { conflict: Conflict }) {
+  const lost = conflict.local as { updatedAt?: string; deletedAt?: string | null };
+  const kept = conflict.remote as { updatedAt?: string; deletedAt?: string | null };
+  const typeLabel = t(`sync.types.${conflict.entityType}` as TKey);
+  return (
+    <div className="sync-conflict">
+      <div className="row-flex gap-2"><span className="tag">{typeLabel}</span><b className="ellipsis">{entityLabel(conflict.remote)}</b></div>
+      <div className="sync-versions">
+        <div>
+          <div className="eyebrow">{t('sync.kept')}</div>
+          <div className="small ellipsis">{kept.deletedAt ? t('sync.deleted') : entityLabel(conflict.remote)}</div>
+        </div>
+        <div>
+          <div className="eyebrow">{t('sync.discarded')}</div>
+          <div className="small ellipsis">{lost.deletedAt ? t('sync.deleted') : entityLabel(conflict.local)}</div>
+        </div>
+      </div>
+      <div className="row-flex gap-2 wrap">
+        <button className="btn btn-sm" onClick={() => void keepDiscardedVersion(conflict).then(() => toast(t('sync.keptVersion')))}>{t('sync.keepDiscarded')}</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => void keepCurrentVersion(conflict)}>{t('sync.keepCurrent')}</button>
+      </div>
+    </div>
+  );
+}
+
+export function SyncBadge() {
+  const sync = useSync();
+  if (!sync.configured) return <span className="tag">{t('sync.off')}</span>;
+  return <span className={cx('tag', sync.status === 'error' ? 'warn' : 'success')}>{sync.status === 'error' ? t('sync.badgeError') : t('sync.on')}</span>;
+}
+
+function SyncStatusText() {
+  const sync = useSync();
+  if (sync.status === 'syncing') return <span className="small">{t('sync.syncing')}</span>;
+  if (sync.status === 'error') return <span className="small" style={{ color: 'var(--warning)' }}>{t('sync.badgeError')}</span>;
+  return <span className="small">{sync.lastSyncAt ? t('sync.syncedAgo', { when: agoLabel(sync.lastSyncAt) }) : t('sync.never')}</span>;
+}
+
+export function agoLabel(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (min < 1) return t('sync.justNow');
+  return t('sync.ago', { duration: formatDuration(min) });
 }
 
 function AboutSection() {

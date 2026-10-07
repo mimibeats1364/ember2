@@ -17,6 +17,7 @@ import { setUiSoundsEnabled } from '@/platform/sound';
 import { isTauri } from '@/platform/env';
 import { navigate, openCapture, openPalette, openTask, toast, useUi, type Screen } from './ui';
 import { closeOrbit, openOrbit, useOrbit } from '@/features/orbit/store';
+import { isApplyingRemote, loadSyncConfig, syncNow, useSync } from '@/data/sync';
 import { tickFocus, togglePauseFocus, useFocus, startFocusSession } from './focusStore';
 import { performCapture } from './QuickCapture';
 import { runIslandCommand, type IslandCommand } from './LiveIsland';
@@ -126,6 +127,41 @@ export function DeepLinkBridge() {
     void listenDeepLinks().then((u) => (un = u));
     return () => un?.();
   }, [ready]);
+  return null;
+}
+
+/**
+ * Sincronización automática (solo si está configurada): al abrir, cada 90 s con la ventana
+ * visible, al volver a la ventana o recuperar la conexión, y unos segundos después de cada cambio.
+ */
+export function SyncEngine() {
+  const configured = useSync((s) => s.configured);
+  useEffect(() => {
+    void loadSyncConfig();
+  }, []);
+  useEffect(() => {
+    if (!configured) return;
+    const tick = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine !== false) void syncNow();
+    };
+    tick();
+    const id = setInterval(tick, 90_000);
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useData.subscribe((s, prev) => {
+      if (s.c === prev.c || isApplyingRemote()) return;
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(tick, 5000);
+    });
+    window.addEventListener('focus', tick);
+    window.addEventListener('online', tick);
+    return () => {
+      clearInterval(id);
+      if (debounce) clearTimeout(debounce);
+      unsub();
+      window.removeEventListener('focus', tick);
+      window.removeEventListener('online', tick);
+    };
+  }, [configured]);
   return null;
 }
 

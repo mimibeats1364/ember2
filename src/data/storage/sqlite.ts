@@ -76,8 +76,16 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   async clearOutbox(keys: OutboxKey[]) {
-    for (const k of keys) {
-      await this.db.execute('DELETE FROM outbox WHERE type = $1 AND id = $2 AND updated_at = $3', [k.type, k.id, k.updatedAt]);
+    // En bloques: la primera sincronización puede confirmar miles de registros de golpe.
+    for (let i = 0; i < keys.length; i += CHUNK) {
+      const chunk = keys.slice(i, i + CHUNK);
+      const values: unknown[] = [];
+      const conds = chunk.map((k, j) => {
+        values.push(k.type, k.id, k.updatedAt);
+        const b = j * 3;
+        return `(type = $${b + 1} AND id = $${b + 2} AND updated_at = $${b + 3})`;
+      });
+      await this.db.execute(`DELETE FROM outbox WHERE ${conds.join(' OR ')}`, values);
     }
   }
 

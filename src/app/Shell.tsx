@@ -7,7 +7,7 @@ import { Sidebar } from './Sidebar';
 import { CommandPalette } from './CommandPalette';
 import { QuickCaptureModal } from './QuickCapture';
 import { ConfirmDialog, MobileNav, Toaster } from './Overlays';
-import { DeepLinkBridge, DockBadgeSync, FocusEngine, IslandBridge, NativeBridge, NotificationEngine, Shortcuts, ThemeSync, TraySync } from './engines';
+import { DeepLinkBridge, DockBadgeSync, FocusEngine, IslandBridge, NativeBridge, NotificationEngine, Shortcuts, SyncEngine, ThemeSync, TraySync } from './engines';
 import { AmbientBackground } from '@/ui/components/Ambient';
 import { ContextMenuHost, cx } from '@/ui/components/primitives';
 import { DragGhost } from '@/ui/components/dnd';
@@ -62,6 +62,7 @@ export function Shell() {
       <IslandBridge />
       <DeepLinkBridge />
       <NativeBridge />
+      <SyncEngine />
       <Shortcuts />
       <AmbientBackground calm={immersive} />
       <a className="skip-link" href="#main">
